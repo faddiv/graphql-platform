@@ -1,3 +1,5 @@
+using GreenDonut.Helpers;
+
 namespace GreenDonut;
 
 /// <summary>
@@ -115,11 +117,7 @@ public readonly struct Promise<TValue> : IPromise
         Task.ContinueWith(
             (task, s) =>
             {
-#if NETSTANDARD2_0
-                if(task.Status == TaskStatus.RanToCompletion
-#else
-                if (task.IsCompletedSuccessfully
-#endif
+                if (task.IsCompletedSuccessfully()
                     && task.Result is not null)
                 {
                     callback(new Promise<TValue>(task.Result), (TState)s!);

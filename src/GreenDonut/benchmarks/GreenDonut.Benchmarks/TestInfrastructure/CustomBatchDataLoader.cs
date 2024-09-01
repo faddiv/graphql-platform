@@ -12,6 +12,6 @@ public class CustomBatchDataLoader : BatchDataLoader<string, string>
     protected override Task<IReadOnlyDictionary<string, string>> LoadBatchAsync(
         IReadOnlyList<string> keys,
         CancellationToken cancellationToken)
-        => Task.FromResult<IReadOnlyDictionary<string, string>>(
-            keys.ToDictionary(t => t, t => "Value:" + t));
+        => Task<IReadOnlyDictionary<string, string>>.Factory.StartNew(static (state) =>
+            state is IReadOnlyList<string> keysI ? keysI.ToDictionary(t => t, t => "Value:" + t) : new Dictionary<string, string>(), keys, cancellationToken);
 }

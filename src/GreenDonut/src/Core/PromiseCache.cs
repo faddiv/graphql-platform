@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
+using GreenDonut.Helpers;
 
 namespace GreenDonut;
 
@@ -239,11 +240,7 @@ public sealed class PromiseCache : IPromiseCache
 
             while (current is not null)
             {
-#if NETSTANDARD2_0
-                if(current.Value.Task.Status == TaskStatus.RanToCompletion
-#else
-                if (current.Value.Task.IsCompletedSuccessfully
-#endif
+                if (current.Value.Task.IsCompletedSuccessfully()
                     && !current.Value.IsClone
                     && current.Value.Type == type)
                 {
@@ -425,11 +422,7 @@ public sealed class PromiseCache : IPromiseCache
     {
         public void OnNext(PromiseCacheKey key, Promise<T> promise)
         {
-#if NETSTANDARD2_0
-            if(promise.Task.Status == TaskStatus.RanToCompletion
-#else
-            if (promise.Task.IsCompletedSuccessfully
-#endif
+            if (promise.Task.IsCompletedSuccessfully()
                 && skipCacheKeyType?.Equals(key.Type, StringComparison.Ordinal) != true)
             {
                 next(owner, promise);
@@ -438,11 +431,7 @@ public sealed class PromiseCache : IPromiseCache
 
         public void OnNext(Promise<T> promise)
         {
-#if NETSTANDARD2_0
-            if(promise.Task.Status == TaskStatus.RanToCompletion)
-#else
-            if (promise.Task.IsCompletedSuccessfully)
-#endif
+            if (promise.Task.IsCompletedSuccessfully())
             {
                 next(owner, promise);
             }
