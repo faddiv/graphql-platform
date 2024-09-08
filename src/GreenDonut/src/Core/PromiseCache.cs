@@ -9,7 +9,7 @@ namespace GreenDonut;
 /// <summary>
 /// A memorization cache for <c>DataLoader</c>.
 /// </summary>
-public sealed class PromiseCache : IPromiseCache
+public sealed class PromiseCache2 : IPromiseCache
 {
     private const int _minimumSize = 10;
     private readonly object _sync = new();
@@ -28,7 +28,7 @@ public sealed class PromiseCache : IPromiseCache
     /// <param name="size">
     /// The size of the cache. The minimum cache size is 10.
     /// </param>
-    public PromiseCache(int size)
+    public PromiseCache2(int size)
     {
         _size = size < _minimumSize ? _minimumSize : size;
         _order = Convert.ToInt32(size * 0.9);
@@ -415,7 +415,7 @@ public sealed class PromiseCache : IPromiseCache
     }
 
     private sealed class Subscription<T>(
-        PromiseCache owner,
+        PromiseCache2 owner,
         Action<IPromiseCache, Promise<T>> next,
         string? skipCacheKeyType)
         : Subscription(typeof(T), owner._subscriptions)
@@ -459,9 +459,9 @@ public sealed class PromiseCache : IPromiseCache
         }
     }
 
-    private readonly struct CacheAndKey(PromiseCache cache, PromiseCacheKey key)
+    private readonly struct CacheAndKey(PromiseCache2 cache, PromiseCacheKey key)
     {
-        public PromiseCache Cache { get; } = cache;
+        public PromiseCache2 Cache { get; } = cache;
 
         public PromiseCacheKey Key { get; } = key;
     }

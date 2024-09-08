@@ -1,6 +1,5 @@
 ﻿using System.Buffers;
 using System.Collections.Concurrent;
-using System.Collections.Immutable;
 using GreenDonut.Helpers;
 
 namespace GreenDonut;
@@ -8,15 +7,14 @@ namespace GreenDonut;
 /// <summary>
 /// A memorization cache for <c>DataLoader</c>.
 /// </summary>
-public sealed class PromiseCache2 : IPromiseCache
+public sealed class PromiseCache : IPromiseCache
 {
-    private const int _minimumSize = 10;
+    private const int MinimumSize = 10;
     private readonly ConcurrentDictionary<PromiseCacheKey, Entry> _promises = new();
     private readonly ConcurrentDictionary<Type, List<Subscription>> _subscriptions = new();
     private readonly ConcurrentStack<IPromise> _promises2 = new();
     private readonly int _size;
     private readonly int _order;
-    private int _usage;
 
     /// <summary>
     /// Creates a new instance of <see cref="PromiseCache"/>.
@@ -24,9 +22,9 @@ public sealed class PromiseCache2 : IPromiseCache
     /// <param name="size">
     /// The size of the cache. The minimum cache size is 10.
     /// </param>
-    public PromiseCache2(int size)
+    public PromiseCache(int size)
     {
-        _size = size < _minimumSize ? _minimumSize : size;
+        _size = size < MinimumSize ? MinimumSize : size;
         _order = Convert.ToInt32(size * 0.9);
     }
 
@@ -34,8 +32,9 @@ public sealed class PromiseCache2 : IPromiseCache
     public int Size => _size;
 
     /// <inheritdoc />
-    public int Usage => _usage;
+    public int Usage => _promises.Count + _promises2.Count;
 
+    /// <inheritdoc />
     public Task<T> GetOrAddTask<T>(PromiseCacheKey key, Func<PromiseCacheKey, Promise<T>> createPromise)
     {
         if (key.Type is null)
@@ -53,6 +52,7 @@ public sealed class PromiseCache2 : IPromiseCache
         return result.promise.Task;
     }
 
+    /// <inheritdoc />
     public bool TryAdd<T>(PromiseCacheKey key, Promise<T> promise)
     {
         if (key.Type is null)
@@ -70,6 +70,7 @@ public sealed class PromiseCache2 : IPromiseCache
         return result.newEntry;
     }
 
+    /// <inheritdoc />
     public bool TryAdd<T>(PromiseCacheKey key, Func<Promise<T>> createPromise)
     {
         if (key.Type is null)
@@ -87,6 +88,7 @@ public sealed class PromiseCache2 : IPromiseCache
         return result.newEntry;
     }
 
+    /// <inheritdoc />
     public bool TryRemove(PromiseCacheKey key)
     {
         return _promises.TryRemove(key, out _);
@@ -118,7 +120,7 @@ public sealed class PromiseCache2 : IPromiseCache
         }
     }
 
-
+    /// <inheritdoc />
     public void PublishMany<T>(IReadOnlyList<T> values)
     {
         var buffer = ArrayPool<IPromise>.Shared.Rent(values.Count);
@@ -157,6 +159,7 @@ public sealed class PromiseCache2 : IPromiseCache
         ArrayPool<IPromise>.Shared.Return(buffer);
     }
 
+    /// <inheritdoc />
     public IDisposable Subscribe<T>(Action<IPromiseCache, Promise<T>> next, string? skipCacheKeyType)
     {
         var type = typeof(T);
@@ -186,12 +189,12 @@ public sealed class PromiseCache2 : IPromiseCache
         return subscription;
     }
 
+    /// <inheritdoc />
     public void Clear()
     {
         _promises.Clear();
         _promises2.Clear();
         _subscriptions.Clear();
-        _usage = 0;
     }
 
     private (bool newEntry, Promise<T> promise) GetOrAddEntryInternal<T, TState>(
@@ -199,22 +202,17 @@ public sealed class PromiseCache2 : IPromiseCache
         Func<PromiseCacheKey, TState, Promise<T>> createPromise,
         TState state)
     {
-        if (_usage > _order && _usage >= _size)
+        var usage = Usage;
+        if (usage > _order && usage >= _size)
         {
             var nonCachedEntry = new Entry(key, createPromise(key, state));
             return nonCachedEntry.EnsureInitialized<T>(this);
         }
 
-#if NET6_0_OR_GREATER
         var entry = _promises.GetOrAdd(
             key,
             static (k, args) => new Entry(k, args.createPromise(k, args.state)),
             (createPromise, state));
-#else
-        var entry = _promises.GetOrAdd(
-            key,
-            k => new Entry(k, createPromise(k, state)));
-#endif
 
         return entry.EnsureInitialized<T>(this);
     }
@@ -253,7 +251,7 @@ public sealed class PromiseCache2 : IPromiseCache
         public PromiseCacheKey Key { get; } = key;
         public IPromise Promise { get; } = promise;
 
-        public (bool newEntry, Promise<T> promise) EnsureInitialized<T>(PromiseCache2 cache)
+        public (bool newEntry, Promise<T> promise) EnsureInitialized<T>(PromiseCache cache)
         {
             if (Promise is not Promise<T> promise)
             {
@@ -275,7 +273,7 @@ public sealed class PromiseCache2 : IPromiseCache
 
                 if (!promise.IsClone)
                 {
-                    promise.OnComplete(NotifySubscribers, new CacheAndKey(cache, key));
+                    promise.OnComplete(NotifySubscribers, new CacheAndKey(cache, Key));
                 }
 
                 _initialized = true;
@@ -290,7 +288,7 @@ public sealed class PromiseCache2 : IPromiseCache
         List<Subscription> subscriptions,
         Action<IPromiseCache, Promise<T>> next,
         string? skipCacheKeyType)
-        : Subscription(typeof(T), subscriptions)
+        : Subscription(subscriptions)
     {
         public void OnNext(PromiseCacheKey key, Promise<T> promise)
         {
@@ -311,7 +309,6 @@ public sealed class PromiseCache2 : IPromiseCache
     }
 
     private abstract class Subscription(
-        Type type,
         List<Subscription> subscriptions)
         : IDisposable
     {
@@ -333,9 +330,9 @@ public sealed class PromiseCache2 : IPromiseCache
         }
     }
 
-    private readonly struct CacheAndKey(PromiseCache2 cache, PromiseCacheKey key)
+    private readonly struct CacheAndKey(PromiseCache cache, PromiseCacheKey key)
     {
-        public PromiseCache2 Cache { get; } = cache;
+        public PromiseCache Cache { get; } = cache;
 
         public PromiseCacheKey Key { get; } = key;
     }
