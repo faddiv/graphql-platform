@@ -1,19 +1,32 @@
-﻿namespace GreenDonut;
+using System.Collections.Concurrent;
+using GreenDonut.Helpers;
 
-internal class Batch2<TKey> where TKey : notnull
+namespace GreenDonut;
+
+internal partial class Batch2<TKey> where TKey : notnull
 {
-    private readonly List<TKey> _keys = [];
-    private readonly Dictionary<TKey, IPromise> _items = new();
+    private readonly ConcurrentDictionary<TKey, IPromise> _items = new();
+    private readonly Lock _lock = new();
+    private bool _closed;
 
-    public int Size => _keys.Count;
+    public int Size => _items.Count;
 
-    public IReadOnlyList<TKey> Keys => _keys;
+    public IReadOnlyList<TKey> Keys => _closed ? [.. _items.Keys] : [];
 
     public bool TryAdd(TKey key, IPromise promise, int maxBatchSize)
     {
-        // TODO read also needs synchronized.
-        lock (this)
+        if (_closed)
         {
+            return false;
+        }
+
+        lock (_lock)
+        {
+            if (_closed)
+            {
+                return false;
+            }
+
             if (maxBatchSize > 0 && _items.Count >= maxBatchSize)
             {
                 return false;
@@ -24,17 +37,24 @@ internal class Batch2<TKey> where TKey : notnull
                 return false;
             }
 
-            _keys.Add(key);
             return true;
+        }
+    }
+
+    public void Close()
+    {
+        lock (_lock)
+        {
+            _closed = true;
         }
     }
 
     public Promise2<TValue> GetPromise<TValue>(TKey key)
         => (Promise2<TValue>)_items[key];
 
-    internal void ClearUnsafe()
+    private void ClearUnsafe()
     {
-        _keys.Clear();
         _items.Clear();
+        _closed = false;
     }
 }

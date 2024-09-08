@@ -1,4 +1,4 @@
-﻿namespace GreenDonut;
+namespace GreenDonut;
 
 public abstract partial class DataLoaderBase2<TKey, TValue>
 {
@@ -68,5 +68,5 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
     }
 
     /// <inheritdoc />
-    public void Clear() => Cache?.Clear();
+    public void Clear() => _cache?.Clear();
 }

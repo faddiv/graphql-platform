@@ -1,4 +1,4 @@
-﻿using GreenDonut.Helpers;
+using GreenDonut.Helpers;
 
 namespace GreenDonut;
 
@@ -190,7 +190,7 @@ public class Promise2<TValue> : IPromise
         {
             return false;
         }
-
+        // TODO Dont need to wait for lock release. If the lock aquired, then doest need.
         lock (Task)
         {
             if (_initialized)

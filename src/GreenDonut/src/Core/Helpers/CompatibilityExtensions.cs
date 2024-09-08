@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 
 namespace GreenDonut.Helpers;
 
@@ -24,3 +24,11 @@ public static class CompatibilityExtensions
     }
 #endif
 }
+
+#if NET9_0_OR_GREATER
+#else
+internal class Lock
+{
+
+}
+#endif

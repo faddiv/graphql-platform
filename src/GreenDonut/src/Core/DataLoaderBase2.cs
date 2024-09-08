@@ -1,7 +1,8 @@
-﻿using System.Collections.Immutable;
-using System.ComponentModel;
-#if NET8_0_OR_GREATER
 using System.Collections.Concurrent;
+using System.Collections.Immutable;
+using System.Threading.Tasks;
+using GreenDonut.Helpers;
+#if NET8_0_OR_GREATER
 using GreenDonut.Projections;
 #endif
 
@@ -15,8 +16,8 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
     private readonly CancellationToken _ct;
     private readonly IBatchScheduler _batchScheduler;
     private readonly int _maxBatchSize;
-    private readonly ConcurrentDictionary<PromiseCacheKey, IPromise> _cache;
-    private volatile Batch2<TKey>? _currentBatch;
+    private readonly ConcurrentDictionary<PromiseCacheKey, IPromise>? _cache;
+    private Batch2<TKey>? _currentBatch;
 
 #if NET8_0_OR_GREATER
     private readonly ConcurrentDictionary<string, ISelectionDataLoader<TKey, TValue>> _branches;
@@ -58,15 +59,18 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
     /// </summary>
     protected internal virtual string CacheKeyType { get; }
 
-    public IImmutableDictionary<string, object?> ContextData { get; set; }
+    public IImmutableDictionary<string, object?> ContextData { get; set; } =
+        ImmutableDictionary<string, object?>.Empty;
 
+    /// <inheritdoc />
     public Task<TValue?> LoadAsync(TKey key, CancellationToken cancellationToken = default)
-        => LoadAsync(key, CacheKeyType, AllowCachePropagation);
+        => LoadAsync(key, CacheKeyType, AllowCachePropagation, cancellationToken);
 
     private Task<TValue?> LoadAsync(
         TKey key,
         string cacheKeyType,
-        bool allowCachePropagation)
+        bool allowCachePropagation,
+        CancellationToken cancellationToken)
     {
         if (key is null)
         {
@@ -75,10 +79,10 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
 
         PromiseCacheKey cacheKey = new(cacheKeyType, key);
 
-        var promise = (Promise2<TValue>)_cache.GetOrAdd(
+        var promise = (Promise2<TValue?>)(_cache?.GetOrAdd(
             cacheKey,
-            static (_, cloned) => Promise2<TValue>.Create(cloned),
-            !allowCachePropagation);
+            CreatePromise,
+            allowCachePropagation) ?? CreatePromise(cacheKey, allowCachePropagation));
 
         if (!promise.TryInitialize(this, key, static (@this, key, p) => @this.InitializePromise(key, p)))
         {
@@ -86,135 +90,76 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
         }
 
         return promise.Task;
-    }
 
-    private void InitializePromise(TKey key, Promise2<TValue> promise2)
-    {
-        var batch = _currentBatch;
-        do
+        static Promise2<TValue?> CreatePromise(PromiseCacheKey key, bool allowCachePropagationLocal)
         {
-            if (batch is not null && batch.TryAdd(key, promise2, _maxBatchSize))
-            {
-                return;
-            }
-
-            var newBatch = BatchPool2<TKey>.Shared.Get();
-            var originalBatch = Interlocked.CompareExchange(ref _currentBatch, newBatch, batch);
-            if (!ReferenceEquals(originalBatch, batch))
-            {
-                BatchPool2<TKey>.Shared.Return(newBatch);
-                batch = originalBatch;
-                continue;
-            }
-
-            _batchScheduler.Schedule(() => ExecuteBatch(newBatch));
-            batch = newBatch;
-        } while (true);
-    }
-
-    private async ValueTask ExecuteBatch(Batch2<TKey> batch)
-    {
-        Interlocked.CompareExchange(ref _currentBatch, null, batch);
-
-        // TODO batch still can get new elements. Needs Execution lock which can be inspected, if started.
-        var errors = false;
-
-        using (_diagnosticEvents.ExecuteBatch(this, batch.Keys))
-        {
-            var buffer = new Result<TValue?>[batch.Keys.Count];
-
-            try
-            {
-                var context = new DataLoaderFetchContext<TValue>(ContextData);
-                await FetchAsync(batch.Keys, buffer, context, _ct).ConfigureAwait(false);
-                BatchOperationSucceeded(batch, batch.Keys, buffer);
-                _diagnosticEvents.BatchResults<TKey, TValue>(batch.Keys, buffer);
-            }
-            catch (Exception ex)
-            {
-                errors = true;
-                BatchOperationFailed(batch, batch.Keys, ex);
-            }
-        }
-
-        // we return the batch here so that the keys are only cleared
-        // after the diagnostic events are done.
-        if (!errors)
-        {
-            BatchPool2<TKey>.Shared.Return(batch);
+            return Promise2<TValue?>.Create(!allowCachePropagationLocal);
         }
     }
 
-    private void BatchOperationFailed(
-        Batch2<TKey> batch,
-        IReadOnlyList<TKey> keys,
-        Exception error)
-    {
-        _diagnosticEvents.BatchError(keys, error);
+    /// <inheritdoc />
+    public Task<IReadOnlyList<TValue?>> LoadAsync(
+        IReadOnlyCollection<TKey> keys,
+        CancellationToken cancellationToken = default)
+        => LoadAsync(keys, CacheKeyType, AllowCachePropagation, cancellationToken);
 
+    private Task<IReadOnlyList<TValue?>> LoadAsync(
+        IReadOnlyCollection<TKey> keys,
+        string cacheKeyType,
+        bool allowCachePropagation,
+        CancellationToken cancellationToken)
+    {
+        if (keys is null)
+        {
+            throw new ArgumentNullException(nameof(keys));
+        }
+        var tasks = new Task<TValue?>[keys.Count];
+        var index = 0;
         foreach (var key in keys)
         {
-            if (_cache is not null)
-            {
-                PromiseCacheKey cacheKey = new(CacheKeyType, key);
-                _cache.TryRemove(cacheKey, out _);
-            }
+            cancellationToken.ThrowIfCancellationRequested();
 
-            batch.GetPromise<TValue>(key).TrySetError(error);
+            tasks[index++] = LoadAsync(key, cacheKeyType, allowCachePropagation, cancellationToken);
         }
-    }
 
-    private void BatchOperationSucceeded(
-        Batch2<TKey> batch,
-        IReadOnlyList<TKey> keys,
-        Result<TValue?>[] results)
-    {
-        for (var i = 0; i < keys.Count; i++)
-        {
-            var key = keys[i];
-            var value = results[i];
+        return WhenAll(tasks);
 
-            if (value.Kind is ResultKind.Undefined)
-            {
-                // in case we got here less or more results as expected, the
-                // complete batch operation failed.
-                Exception error = Errors.CreateKeysAndValuesMustMatch(keys.Count, i);
-                BatchOperationFailed(batch, keys, error);
-                return;
-            }
+        static async Task<IReadOnlyList<TValue?>> WhenAll(Task<TValue?>[] tasks)
+            => await Task.WhenAll(tasks).ConfigureAwait(false);
 
-            SetSingleResult(batch.GetPromise<TValue?>(key), key, value);
-        }
-    }
-    private void SetSingleResult(
-        Promise2<TValue?> promise,
-        TKey key,
-        Result<TValue?> result)
-    {
-        if (result.Kind is ResultKind.Value)
-        {
-            promise.TrySetResult(result);
-        }
-        else
-        {
-            _diagnosticEvents.BatchItemError(key, result.Error!);
-            promise.TrySetError(result.Error!);
-        }
-    }
-
-    public Task<IReadOnlyList<TValue?>> LoadAsync(IReadOnlyCollection<TKey> keys, CancellationToken cancellationToken = default)
-    {
-        throw new NotImplementedException();
     }
 
     public void Remove(TKey key)
     {
-        throw new NotImplementedException();
+        if (key is null)
+        {
+            throw new ArgumentNullException(nameof(key));
+        }
+
+        if (_cache is not null)
+        {
+            PromiseCacheKey cacheKey = new(CacheKeyType, key);
+            _cache.TryRemove(cacheKey, out _);
+        }
     }
 
     public void Set(TKey key, Task<TValue?> value)
     {
-        throw new NotImplementedException();
+        if (key == null)
+        {
+            throw new ArgumentNullException(nameof(key));
+        }
+
+        if (value == null)
+        {
+            throw new ArgumentNullException(nameof(value));
+        }
+
+        if (_cache is not null)
+        {
+            PromiseCacheKey cacheKey = new(CacheKeyType, key);
+            _cache.TryAdd(cacheKey, new Promise<TValue?>(value));
+        }
     }
 
 #if NET8_0_OR_GREATER
@@ -248,4 +193,114 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
     /// </returns>
     protected static string GetCacheKeyType(Type type)
         => type.FullName ?? type.Name;
+
+    private void InitializePromise(TKey key, Promise2<TValue> promise2)
+    {
+        var batch = _currentBatch;
+        do
+        {
+            if (batch is not null && batch.TryAdd(key, promise2, _maxBatchSize))
+            {
+                return;
+            }
+            // TODO Lock is better way here.
+            var newBatch = BatchPool2<TKey>.Shared.Get();
+            var originalBatch = Interlocked.CompareExchange(ref _currentBatch, newBatch, batch);
+            if (!ReferenceEquals(originalBatch, batch))
+            {
+                BatchPool2<TKey>.Shared.Return(newBatch);
+                batch = originalBatch;
+                continue;
+            }
+
+            _batchScheduler.Schedule(() => ExecuteBatch(newBatch));
+            batch = newBatch;
+        } while (true);
+    }
+
+    private async ValueTask ExecuteBatch(Batch2<TKey> batch)
+    {
+        //Remove the batch only if it is still the same.
+        Interlocked.CompareExchange(ref _currentBatch, null, batch);
+
+        var errors = false;
+
+        // Before start processing, the batch must be frozen.
+        batch.Close();
+        var keys = batch.Keys;
+
+        using (_diagnosticEvents.ExecuteBatch(this, keys))
+        {
+            var buffer = new Result<TValue?>[keys.Count];
+
+            try
+            {
+                var context = new DataLoaderFetchContext<TValue>(ContextData);
+                await FetchAsync(keys, buffer, context, _ct).ConfigureAwait(false);
+                BatchOperationSucceeded(batch, keys, buffer);
+                _diagnosticEvents.BatchResults<TKey, TValue>(keys, buffer);
+            }
+            catch (Exception ex)
+            {
+                errors = true;
+                BatchOperationFailed(batch, keys, ex);
+            }
+        }
+
+        // we return the batch here so that the keys are only cleared
+        // after the diagnostic events are done.
+        if (!errors)
+        {
+            BatchPool2<TKey>.Shared.Return(batch);
+        }
+    }
+
+    private void BatchOperationFailed(Batch2<TKey> batch, IReadOnlyList<TKey> keys, Exception error)
+    {
+        _diagnosticEvents.BatchError(keys, error);
+
+        foreach (var key in keys)
+        {
+            if (_cache is not null)
+            {
+                PromiseCacheKey cacheKey = new(CacheKeyType, key);
+                _cache.TryRemove(cacheKey, out _);
+            }
+
+            batch.GetPromise<TValue>(key).TrySetError(error);
+        }
+    }
+
+    private void BatchOperationSucceeded(Batch2<TKey> batch, IReadOnlyList<TKey> keys, Result<TValue?>[] results)
+    {
+        for (var i = 0; i < keys.Count; i++)
+        {
+            var key = keys[i];
+            var value = results[i];
+
+            if (value.Kind is ResultKind.Undefined)
+            {
+                // in case we got here less or more results as expected, the
+                // complete batch operation failed.
+                Exception error = Errors.CreateKeysAndValuesMustMatch(keys.Count, i);
+                BatchOperationFailed(batch, keys, error);
+                return;
+            }
+
+            SetSingleResult(batch.GetPromise<TValue?>(key), key, value);
+        }
+    }
+
+    private void SetSingleResult(Promise2<TValue?> promise, TKey key, Result<TValue?> result)
+    {
+        if (result.Kind is ResultKind.Value)
+        {
+            promise.TrySetResult(result);
+        }
+        else
+        {
+            _diagnosticEvents.BatchItemError(key, result.Error!);
+            promise.TrySetError(result.Error!);
+        }
+    }
 }

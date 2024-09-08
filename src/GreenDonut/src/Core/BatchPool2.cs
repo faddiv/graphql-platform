@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.ObjectPool;
+using Microsoft.Extensions.ObjectPool;
 
 namespace GreenDonut;
 
@@ -8,6 +8,6 @@ internal static class BatchPool2<TKey> where TKey : notnull
 
     private static ObjectPool<Batch2<TKey>> Create()
         => new DefaultObjectPool<Batch2<TKey>>(
-            new BatchPooledObjectPolicy2<TKey>(),
+            new Batch2<TKey>.BatchPooledObjectPolicy2(),
             Environment.ProcessorCount * 4);
 }
