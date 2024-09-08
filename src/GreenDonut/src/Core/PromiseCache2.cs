@@ -1,4 +1,4 @@
-﻿using System.Buffers;
+using System.Buffers;
 using System.Collections.Concurrent;
 using GreenDonut.Helpers;
 
@@ -9,7 +9,7 @@ namespace GreenDonut;
 /// </summary>
 public sealed class PromiseCache : IPromiseCache
 {
-    private const int MinimumSize = 10;
+    private const int _minimumSize = 10;
     private readonly ConcurrentDictionary<PromiseCacheKey, Entry> _promises = new();
     private readonly ConcurrentDictionary<Type, List<Subscription>> _subscriptions = new();
     private readonly ConcurrentStack<IPromise> _promises2 = new();
@@ -24,7 +24,7 @@ public sealed class PromiseCache : IPromiseCache
     /// </param>
     public PromiseCache(int size)
     {
-        _size = size < MinimumSize ? MinimumSize : size;
+        _size = size < _minimumSize ? _minimumSize : size;
         _order = Convert.ToInt32(size * 0.9);
     }
 
@@ -246,8 +246,8 @@ public sealed class PromiseCache : IPromiseCache
 
     private class Entry(PromiseCacheKey key, IPromise promise)
     {
-        private volatile bool _initialized;
-        private readonly object _lock = new();
+        private bool _initialized;
+        private readonly Lock _lock = new();
         public PromiseCacheKey Key { get; } = key;
         public IPromise Promise { get; } = promise;
 

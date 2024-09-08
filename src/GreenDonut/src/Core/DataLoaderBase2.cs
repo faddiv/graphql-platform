@@ -1,9 +1,9 @@
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
-using System.Threading.Tasks;
-using GreenDonut.Helpers;
 #if NET8_0_OR_GREATER
 using GreenDonut.Projections;
+#else
+using GreenDonut.Helpers;
 #endif
 
 namespace GreenDonut;
