@@ -1,7 +1,5 @@
 using System.Buffers;
 using System.Collections.Concurrent;
-using System.Collections.Immutable;
-using System.Runtime.CompilerServices;
 using GreenDonut.Helpers;
 
 namespace GreenDonut;
@@ -12,15 +10,11 @@ namespace GreenDonut;
 public sealed class PromiseCache : IPromiseCache
 {
     private const int _minimumSize = 10;
-    private readonly object _sync = new();
-    private readonly ConcurrentDictionary<PromiseCacheKey, Entry> _map = new();
-    private readonly ConcurrentDictionary<Type, ImmutableArray<Subscription>> _subscriptions = new();
-    private readonly List<IPromise> _promises = new();
+    private readonly ConcurrentDictionary<PromiseCacheKey, Entry> _promises = new();
+    private readonly ConcurrentDictionary<Type, List<Subscription>> _subscriptions = new();
+    private readonly ConcurrentStack<IPromise> _promises2 = new();
     private readonly int _size;
     private readonly int _order;
-    private List<(PromiseCacheKey? Key, IPromise Promise)>? _buffer;
-    private int _usage;
-    private Entry? _head;
 
     /// <summary>
     /// Creates a new instance of <see cref="PromiseCache"/>.
@@ -38,7 +32,7 @@ public sealed class PromiseCache : IPromiseCache
     public int Size => _size;
 
     /// <inheritdoc />
-    public int Usage => _usage;
+    public int Usage => _promises.Count + _promises2.Count;
 
     /// <inheritdoc />
     public Task<T> GetOrAddTask<T>(PromiseCacheKey key, Func<PromiseCacheKey, Promise<T>> createPromise)
@@ -53,27 +47,9 @@ public sealed class PromiseCache : IPromiseCache
             throw new ArgumentNullException(nameof(createPromise));
         }
 
-        var read = true;
+        var result = GetOrAddEntryInternal(key, static (key, args) => args(key), createPromise);
 
-        var entry = _map.GetOrAdd(key, k =>
-        {
-            read = false;
-            return AddNewEntry(k, createPromise(k));
-        });
-
-        if (read)
-        {
-            TouchEntryUnsafe(entry);
-        }
-
-        var promise = (Promise<T>)entry.Value;
-
-        if (!promise.IsClone)
-        {
-            promise.OnComplete(NotifySubscribers, new CacheAndKey(this, key));
-        }
-
-        return promise.Task;
+        return result.promise.Task;
     }
 
     /// <inheritdoc />
@@ -89,20 +65,9 @@ public sealed class PromiseCache : IPromiseCache
             throw new ArgumentNullException(nameof(promise));
         }
 
-        var read = true;
+        var result = GetOrAddEntryInternal(key, static (_, args) => args, promise);
 
-        _map.GetOrAdd(key, k =>
-        {
-            read = false;
-            return AddNewEntry(k, promise);
-        });
-
-        if (!promise.IsClone)
-        {
-            promise.OnComplete(NotifySubscribers, new CacheAndKey(this, key));
-        }
-
-        return !read;
+        return result.newEntry;
     }
 
     /// <inheritdoc />
@@ -118,38 +83,15 @@ public sealed class PromiseCache : IPromiseCache
             throw new ArgumentNullException(nameof(createPromise));
         }
 
-        var read = true;
+        var result = GetOrAddEntryInternal(key, static (_, args) => args(), createPromise);
 
-        var entry = _map.GetOrAdd(key, k =>
-        {
-            read = false;
-            return AddNewEntry(k, createPromise());
-        });
-
-        var promise = (Promise<T>)entry.Value;
-
-        if (!promise.IsClone)
-        {
-            promise.OnComplete(NotifySubscribers, new CacheAndKey(this, key));
-        }
-
-        return !read;
+        return result.newEntry;
     }
 
     /// <inheritdoc />
     public bool TryRemove(PromiseCacheKey key)
     {
-        if (_map.TryRemove(key, out var entry))
-        {
-            lock (_sync)
-            {
-                RemoveEntryUnsafe(entry);
-            }
-
-            return true;
-        }
-
-        return false;
+        return _promises.TryRemove(key, out _);
     }
 
     /// <inheritdoc />
@@ -157,19 +99,23 @@ public sealed class PromiseCache : IPromiseCache
     {
         var promise = Promise<T>.Create(value, cloned: true);
 
-        lock (_promises)
+        _promises2.Push(promise);
+
+        if (!_subscriptions.TryGetValue(typeof(T), out var subscriptions))
         {
-            _promises.Add(promise);
+            return;
         }
 
-        if (_subscriptions.TryGetValue(typeof(T), out var subscriptions))
+        List<Subscription> clone;
+        lock (subscriptions)
         {
-            foreach (var subscription in subscriptions)
+            clone = subscriptions.ToList();
+        }
+        foreach (var subscription in clone)
+        {
+            if (subscription is Subscription<T> casted)
             {
-                if (subscription is Subscription<T> casted)
-                {
-                    casted.OnNext(promise);
-                }
+                casted.OnNext(promise);
             }
         }
     }
@@ -177,253 +123,177 @@ public sealed class PromiseCache : IPromiseCache
     /// <inheritdoc />
     public void PublishMany<T>(IReadOnlyList<T> values)
     {
-        var buffer = ArrayPool<Promise<T>>.Shared.Rent(values.Count);
-        var span = buffer.AsSpan().Slice(values.Count);
+        var buffer = ArrayPool<IPromise>.Shared.Rent(values.Count);
+        var span = buffer.AsSpan().Slice(0, values.Count);
 
-        lock (_promises)
+        for (var i = 0; i < values.Count; i++)
         {
-            for (var i = 0; i < values.Count; i++)
-            {
-                var promise = Promise<T>.Create(values[i], cloned: true);
-                span[i] = promise;
-                _promises.Add(promise);
-            }
+            var promise = Promise<T>.Create(values[i], cloned: true);
+            span[i] = promise;
         }
+
+        _promises2.PushRange(buffer, 0, values.Count);
 
         if (_subscriptions.TryGetValue(typeof(T), out var subscriptions))
         {
-            foreach (var subscription in subscriptions)
+            List<Subscription> clone;
+            lock (subscriptions)
             {
-                if (subscription is Subscription<T> casted)
+                clone = subscriptions.ToList();
+            }
+            foreach (var subscription in clone)
+            {
+                if (subscription is not Subscription<T> casted)
                 {
-                    for (var i = 0; i < span.Length; i++)
-                    {
-                        casted.OnNext(span[i]);
-                    }
+                    continue;
+                }
+
+                foreach (var item in span)
+                {
+                    casted.OnNext((Promise<T>)item);
                 }
             }
         }
 
         span.Clear();
-        ArrayPool<Promise<T>>.Shared.Return(buffer);
+        ArrayPool<IPromise>.Shared.Return(buffer);
     }
 
     /// <inheritdoc />
-    public IDisposable Subscribe<T>(
-        Action<IPromiseCache, Promise<T>> next,
-        string? skipCacheKeyType)
+    public IDisposable Subscribe<T>(Action<IPromiseCache, Promise<T>> next, string? skipCacheKeyType)
     {
         var type = typeof(T);
-        var promises = Interlocked.Exchange(ref _buffer, null) ?? [];
-        var subscription = new Subscription<T>(this, next, skipCacheKeyType);
+        var p1 = _promises2.ToArray();
+        var p2 = _promises.ToArray();
+        var subscriptions =  _subscriptions.GetOrAdd(type, _ => []);
+        var subscription = new Subscription<T>(this, subscriptions, next, skipCacheKeyType);
 
-        _subscriptions.AddOrUpdate(
-            type,
-            _ => ImmutableArray.Create<Subscription>(subscription),
-            (_, list) => list.Add(subscription));
-
-        lock (_promises)
+        lock (subscriptions)
         {
-            foreach (var promise in _promises)
-            {
-                if (promise is Promise<T>)
-                {
-                    promises.Add((null, promise));
-                }
-            }
+            subscriptions.Add(subscription);
         }
 
-        lock (_sync)
+        foreach (var promise in p1.OfType<Promise<T>>())
         {
-            var first = _head;
-            var current = first;
-
-            while (current is not null)
-            {
-                if (current.Value.Task.IsCompletedSuccessfully()
-                    && !current.Value.IsClone
-                    && current.Value.Type == type)
-                {
-                    promises.Add((current.Key, current.Value.Clone()));
-                }
-
-                current = current.Next;
-
-                if (current == first)
-                {
-                    break;
-                }
-            }
+            subscription.OnNext(promise);
         }
 
-        foreach (var entry in promises)
+        foreach (var keyValuePair in p2)
         {
-            if (entry.Key.HasValue)
+            if (keyValuePair.Value.Promise is Promise<T> promise)
             {
-                subscription.OnNext(entry.Key.Value, (Promise<T>)entry.Promise);
-            }
-            else
-            {
-                subscription.OnNext((Promise<T>)entry.Promise);
+                subscription.OnNext(keyValuePair.Key, promise);
             }
         }
-
-        promises.Clear();
-        _buffer = Interlocked.CompareExchange(ref _buffer, promises, null);
 
         return subscription;
     }
 
-    private void NotifySubscribers<T>(PromiseCacheKey key, Promise<T> promise)
+    /// <inheritdoc />
+    public void Clear()
     {
-        if (_subscriptions.TryGetValue(typeof(T), out var subscriptions))
-        {
-            promise = promise.Clone();
+        _promises.Clear();
+        _promises2.Clear();
+        _subscriptions.Clear();
+    }
 
-            foreach (var subscription in subscriptions)
-            {
-                if (subscription is Subscription<T> casted)
-                {
-                    casted.OnNext(key, promise);
-                }
-            }
+    private (bool newEntry, Promise<T> promise) GetOrAddEntryInternal<T, TState>(
+        PromiseCacheKey key,
+        Func<PromiseCacheKey, TState, Promise<T>> createPromise,
+        TState state)
+    {
+        var usage = Usage;
+        if (usage > _order && usage >= _size)
+        {
+            var nonCachedEntry = new Entry(key, createPromise(key, state));
+            return nonCachedEntry.EnsureInitialized<T>(this);
         }
+
+        var entry = _promises.GetOrAdd(
+            key,
+            static (k, args) => new Entry(k, args.createPromise(k, args.state)),
+            (createPromise, state));
+
+        return entry.EnsureInitialized<T>(this);
     }
 
     private static void NotifySubscribers<T>(Promise<T> promise, CacheAndKey state)
         => state.Cache.NotifySubscribers(state.Key, promise);
 
-    /// <inheritdoc />
-    public void Clear()
+    private void NotifySubscribers<T>(PromiseCacheKey key, Promise<T> promise)
     {
-        lock (_sync)
-        {
-            var current = _head;
-
-            if (current is not null)
-            {
-                do
-                {
-                    current.Value.TryCancel();
-                    current = current.Next;
-                } while (current is not null && !ReferenceEquals(_head, current));
-            }
-
-            _map.Clear();
-            _buffer?.Clear();
-            _subscriptions.Clear();
-            _promises.Clear();
-            _head = null;
-            _usage = 0;
-        }
-    }
-
-    private Entry AddNewEntry(PromiseCacheKey key, IPromise promise)
-    {
-        lock (_sync)
-        {
-            var entry = new Entry(key, promise);
-            AppendEntryUnsafe(entry);
-            ClearSpaceForNewEntryUnsafe();
-            return entry;
-        }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void ClearSpaceForNewEntryUnsafe()
-    {
-        while (_head is not null && _usage > _size)
-        {
-            var last = _head.Previous!;
-            RemoveEntryUnsafe(last);
-            _map.TryRemove(last.Key, out _);
-        }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void TouchEntryUnsafe(Entry touched)
-    {
-        if (_order > _usage || _head == touched)
+        if (!_subscriptions.TryGetValue(typeof(T), out var subscriptions))
         {
             return;
         }
 
-        lock (_sync)
+        promise = promise.Clone();
+
+        List<Subscription> clone;
+        lock (subscriptions)
         {
-            if (RemoveEntryUnsafe(touched))
+            clone = subscriptions.ToList();
+        }
+
+        foreach (var subscription in clone)
+        {
+            if (subscription is Subscription<T> casted)
             {
-                AppendEntryUnsafe(touched);
+                casted.OnNext(key, promise);
             }
         }
     }
 
-    private void AppendEntryUnsafe(Entry newEntry)
+    private class Entry(PromiseCacheKey key, IPromise promise)
     {
-        if (_head is not null)
-        {
-            newEntry.Next = _head;
-            newEntry.Previous = _head.Previous;
-            _head.Previous!.Next = newEntry;
-            _head.Previous = newEntry;
-            _head = newEntry;
-        }
-        else
-        {
-            newEntry.Next = newEntry;
-            newEntry.Previous = newEntry;
-            _head = newEntry;
-        }
+        private bool _initialized;
+        private readonly Lock _lock = new();
+        public PromiseCacheKey Key { get; } = key;
+        public IPromise Promise { get; } = promise;
 
-        _usage++;
-    }
-
-    private bool RemoveEntryUnsafe(Entry entry)
-    {
-        if (entry.Next == null)
+        public (bool newEntry, Promise<T> promise) EnsureInitialized<T>(PromiseCache cache)
         {
-            return false;
-        }
-
-        if (entry.Next == entry)
-        {
-            _head = null;
-        }
-        else
-        {
-            entry.Next!.Previous = entry.Previous;
-            entry.Previous!.Next = entry.Next;
-
-            if (_head == entry)
+            if (Promise is not Promise<T> promise)
             {
-                _head = entry.Next;
+                throw new InvalidOperationException(
+                    $"Promise is not type of {typeof(Promise<T>).FullName}. Real type {Promise.GetType().FullName}");
             }
 
-            entry.Next = null;
-            entry.Previous = null;
+            if (_initialized)
+            {
+                return (false, promise);
+            }
+
+            lock (_lock)
+            {
+                if (_initialized)
+                {
+                    return (false, promise);
+                }
+
+                if (!promise.IsClone)
+                {
+                    promise.OnComplete(NotifySubscribers, new CacheAndKey(cache, Key));
+                }
+
+                _initialized = true;
+            }
+
+            return (true, promise);
         }
-
-        _usage--;
-        return true;
-    }
-
-    private sealed class Entry(PromiseCacheKey key, IPromise value)
-    {
-        public readonly PromiseCacheKey Key = key;
-        public readonly IPromise Value = value;
-        public Entry? Next;
-        public Entry? Previous;
     }
 
     private sealed class Subscription<T>(
-        PromiseCache owner,
+        IPromiseCache owner,
+        List<Subscription> subscriptions,
         Action<IPromiseCache, Promise<T>> next,
         string? skipCacheKeyType)
-        : Subscription(typeof(T), owner._subscriptions)
+        : Subscription(subscriptions)
     {
         public void OnNext(PromiseCacheKey key, Promise<T> promise)
         {
-            if (promise.Task.IsCompletedSuccessfully()
-                && skipCacheKeyType?.Equals(key.Type, StringComparison.Ordinal) != true)
+            if (promise.Task.IsCompletedSuccessfully() &&
+                skipCacheKeyType?.Equals(key.Type, StringComparison.Ordinal) != true)
             {
                 next(owner, promise);
             }
@@ -439,23 +309,24 @@ public sealed class PromiseCache : IPromiseCache
     }
 
     private abstract class Subscription(
-        Type type,
-        ConcurrentDictionary<Type, ImmutableArray<Subscription>> subscriptions)
+        List<Subscription> subscriptions)
         : IDisposable
     {
         private bool _disposed;
 
         public void Dispose()
         {
-            if (!_disposed)
+            if (_disposed)
             {
-                subscriptions.AddOrUpdate(
-                    type,
-                    _ => ImmutableArray.Create(this),
-                    (_, list) => list.Remove(this));
-
-                _disposed = true;
+                return;
             }
+
+            lock (subscriptions)
+            {
+                subscriptions.Remove(this);
+            }
+
+            _disposed = true;
         }
     }
 

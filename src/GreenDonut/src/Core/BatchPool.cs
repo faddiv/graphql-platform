@@ -8,6 +8,6 @@ internal static class BatchPool<TKey> where TKey : notnull
 
     private static ObjectPool<Batch<TKey>> Create()
         => new DefaultObjectPool<Batch<TKey>>(
-            new BatchPooledObjectPolicy<TKey>(),
+            new Batch<TKey>.BatchPooledObjectPolicy(),
             Environment.ProcessorCount * 4);
 }

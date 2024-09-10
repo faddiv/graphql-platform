@@ -9,9 +9,10 @@ namespace GreenDonut;
 /// or a <see cref="TaskCompletionSource{TResult}"/>.
 /// </summary>
 /// <typeparam name="TValue"></typeparam>
-public readonly struct Promise<TValue> : IPromise
+public class Promise<TValue> : IPromise
 {
     private readonly TaskCompletionSource<TValue>? _completionSource;
+    private volatile bool _initialized;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Promise{TValue}"/> class
@@ -90,14 +91,7 @@ public readonly struct Promise<TValue> : IPromise
 
     /// <inheritdoc />
     public void TryCancel()
-    {
-        if (_completionSource?.Task.IsCompleted ?? true)
-        {
-            return;
-        }
-
-        _completionSource?.TrySetCanceled();
-    }
+        => _completionSource?.TrySetCanceled();
 
     /// <summary>
     /// Registers a callback that will be called when the promise is completed.
@@ -187,4 +181,27 @@ public readonly struct Promise<TValue> : IPromise
     /// </returns>
     public static implicit operator Promise<TValue>(TaskCompletionSource<TValue> promise)
         => new(promise);
+
+    public bool TryInitialize<TKey>(
+        DataLoaderBase<TKey,TValue> dataLoaderBase2, TKey key,
+        Action<DataLoaderBase<TKey,TValue>, TKey, Promise<TValue>> initialize) where TKey : notnull
+    {
+        if (_initialized)
+        {
+            return false;
+        }
+        // TODO Don't need to wait for lock release. If the lock aquired, then doesn't need.
+        lock (Task)
+        {
+            if (_initialized)
+            {
+                return false;
+            }
+
+            initialize(dataLoaderBase2, key, this);
+
+            _initialized = true;
+        }
+        return true;
+    }
 }

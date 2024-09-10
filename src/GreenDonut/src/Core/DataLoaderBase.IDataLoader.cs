@@ -68,5 +68,5 @@ public abstract partial class DataLoaderBase<TKey, TValue>
     }
 
     /// <inheritdoc />
-    public void Clear() => Cache?.Clear();
+    public void Clear() => _cache?.Clear();
 }
