@@ -7,22 +7,24 @@ internal partial class Batch<TKey> where TKey : notnull
 {
     private readonly ConcurrentDictionary<TKey, IPromise> _items = new();
     private readonly Lock _lock = new();
-    private bool _closed;
+    private bool _isScheduled;
+
+    public bool IsScheduled => _isScheduled;
 
     public int Size => _items.Count;
 
-    public IReadOnlyList<TKey> Keys => _closed ? [.. _items.Keys] : [];
+    public IReadOnlyList<TKey> Keys => _isScheduled ? [.. _items.Keys] : [];
 
     public bool TryAdd(TKey key, IPromise promise, int maxBatchSize)
     {
-        if (_closed)
+        if (_isScheduled)
         {
             return false;
         }
 
         lock (_lock)
         {
-            if (_closed)
+            if (_isScheduled)
             {
                 return false;
             }
@@ -45,7 +47,7 @@ internal partial class Batch<TKey> where TKey : notnull
     {
         lock (_lock)
         {
-            _closed = true;
+            _isScheduled = true;
         }
     }
 
@@ -55,6 +57,6 @@ internal partial class Batch<TKey> where TKey : notnull
     private void ClearUnsafe()
     {
         _items.Clear();
-        _closed = false;
+        _isScheduled = false;
     }
 }
