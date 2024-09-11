@@ -91,8 +91,7 @@ public abstract partial class DataLoaderBase<TKey, TValue>
     protected internal DataLoaderOptions Options
         => new()
         {
-            // TODO Add the new Cache
-            MaxBatchSize = _maxBatchSize, Cache = null, DiagnosticEvents = _diagnosticEvents, CancellationToken = _ct,
+            MaxBatchSize = _maxBatchSize, Cache = Cache, DiagnosticEvents = _diagnosticEvents, CancellationToken = _ct,
         };
 
     /// <inheritdoc />
