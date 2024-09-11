@@ -1,5 +1,8 @@
-using System.Collections.Concurrent;
 using System.Collections.Immutable;
+using GreenDonut.Helpers;
+
+using static GreenDonut.NoopDataLoaderDiagnosticEventListener;
+
 #if NET6_0_OR_GREATER
 using GreenDonut.Projections;
 #else
@@ -16,12 +19,12 @@ public abstract partial class DataLoaderBase<TKey, TValue>
     private readonly CancellationToken _ct;
     private readonly IBatchScheduler _batchScheduler;
     private readonly int _maxBatchSize;
-    private readonly ConcurrentDictionary<PromiseCacheKey, IPromise>? _cache;
     private Batch<TKey>? _currentBatch;
 
 #if NET6_0_OR_GREATER
     private ImmutableDictionary<string, IDataLoader> _branches =
         ImmutableDictionary<string, IDataLoader>.Empty;
+    private Lock _branchesLock = new();
 #endif
 
     /// <summary>
@@ -41,11 +44,11 @@ public abstract partial class DataLoaderBase<TKey, TValue>
     {
         options ??= new DataLoaderOptions();
         _diagnosticEvents = options.DiagnosticEvents ?? NoopDataLoaderDiagnosticEventListener.Default;
+        Cache = options.Cache;
         _ct = options.CancellationToken;
         _batchScheduler = batchScheduler;
         _maxBatchSize = options.MaxBatchSize;
         CacheKeyType = GetCacheKeyType(GetType());
-        _cache = new ConcurrentDictionary<PromiseCacheKey, IPromise>();
     }
 
     /// <summary>
@@ -109,10 +112,10 @@ public abstract partial class DataLoaderBase<TKey, TValue>
 
         PromiseCacheKey cacheKey = new(cacheKeyType, key);
 
-        var promise = (Promise<TValue?>)(_cache?.GetOrAdd(
+        var promise = Cache?.GetOrAddPromise(
             cacheKey,
             CreatePromise,
-            allowCachePropagation) ?? CreatePromise(cacheKey, allowCachePropagation));
+            allowCachePropagation) ?? CreatePromise(cacheKey, allowCachePropagation);
 
         if (!promise.TryInitialize(this, key, static (@this, key, p) => @this.InitializePromise(key, p)))
         {
@@ -143,6 +146,7 @@ public abstract partial class DataLoaderBase<TKey, TValue>
         {
             throw new ArgumentNullException(nameof(keys));
         }
+
         var tasks = new Task<TValue?>[keys.Count];
         var index = 0;
         foreach (var key in keys)
@@ -159,6 +163,7 @@ public abstract partial class DataLoaderBase<TKey, TValue>
 
     }
 
+    /// <inheritdoc />
     public void Remove(TKey key)
     {
         if (key is null)
@@ -166,13 +171,14 @@ public abstract partial class DataLoaderBase<TKey, TValue>
             throw new ArgumentNullException(nameof(key));
         }
 
-        if (_cache is not null)
+        if (Cache is not null)
         {
             PromiseCacheKey cacheKey = new(CacheKeyType, key);
-            _cache.TryRemove(cacheKey, out _);
+            Cache.TryRemove(cacheKey);
         }
     }
 
+    /// <inheritdoc />
     public void Set(TKey key, Task<TValue?> value)
     {
         if (key == null)
@@ -185,10 +191,10 @@ public abstract partial class DataLoaderBase<TKey, TValue>
             throw new ArgumentNullException(nameof(value));
         }
 
-        if (_cache is not null)
+        if (Cache is not null)
         {
             PromiseCacheKey cacheKey = new(CacheKeyType, key);
-            _cache.TryAdd(cacheKey, new Promise<TValue?>(value));
+            Cache.TryAdd(cacheKey, new Promise<TValue?>(value));
         }
     }
 
@@ -217,7 +223,7 @@ public abstract partial class DataLoaderBase<TKey, TValue>
 
         if (!_branches.TryGetValue(key, out var branch))
         {
-            // TODO lock (_sync)
+            lock (_branchesLock)
             {
                 if (!_branches.TryGetValue(key, out branch))
                 {
@@ -311,10 +317,10 @@ public abstract partial class DataLoaderBase<TKey, TValue>
 
         foreach (var key in keys)
         {
-            if (_cache is not null)
+            if (Cache is not null)
             {
                 PromiseCacheKey cacheKey = new(CacheKeyType, key);
-                _cache.TryRemove(cacheKey, out _);
+                Cache.TryRemove(cacheKey);
             }
 
             batch.GetPromise<TValue>(key).TrySetError(error);

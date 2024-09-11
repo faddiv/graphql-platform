@@ -134,7 +134,7 @@ public class PromiseCacheTests
         cache.TryRemove(key);
 
         // assert
-        var retrieved = cache.GetOrAddTask(key, _ => new Promise<string>("Baz"));
+        var retrieved = cache.GetOrAddPromise(key, (_, _) => new Promise<string>("Baz"), new object());
         Assert.NotSame(value, retrieved);
     }
 
@@ -166,10 +166,10 @@ public class PromiseCacheTests
         var added = cache.TryAdd(key, expected);
 
         // assert
-        var resolved = cache.GetOrAddTask(key, _ => new Promise<string>("Baz"));
+        var resolved = cache.GetOrAddPromise(key, (_, _) => new Promise<string>("Baz"), new object());
 
         Assert.True(added);
-        Assert.Equal(expected.Task, resolved);
+        Assert.Equal(expected.Task, resolved.Task);
     }
 
     [Fact(DisplayName = "TryAdd: Should result in a new cache entry and use the factory")]
@@ -185,7 +185,7 @@ public class PromiseCacheTests
         var added = cache.TryAdd(key, () => expected);
 
         // assert
-        var resolved = cache.GetOrAddTask(key, _ => new Promise<string>(Task.FromResult("Baz")));
+        var resolved = cache.GetOrAddPromise(key, (_, _) => new Promise<string>(Task.FromResult("Baz")), new object());
 
         Assert.True(added);
         Assert.Same(expected.Task, resolved);
@@ -206,7 +206,7 @@ public class PromiseCacheTests
         var addedSecond = cache.TryAdd(key, new Promise<string>(another));
 
         // assert
-        var resolved = cache.GetOrAddTask(key, _ => new Promise<string>(Task.FromResult("Quox")));
+        var resolved = cache.GetOrAddPromise(key, (_, _) => new Promise<string>(Task.FromResult("Quox")), new object());
 
         Assert.True(addedFirst);
         Assert.False(addedSecond);
@@ -222,10 +222,10 @@ public class PromiseCacheTests
         var key = new PromiseCacheKey("a", "Foo");
 
         // act
-        var resolved = cache.GetOrAddTask(key, _ => new Promise<string>(Task.FromResult("Quox")));
+        var resolved = cache.GetOrAddPromise(key, (_, _) => new Promise<string>(Task.FromResult("Quox")), new object());
 
         // assert
-        Assert.Equal("Quox", await resolved);
+        Assert.Equal("Quox", await resolved.Task);
     }
 
     [Fact(DisplayName = "TryGetValue (String): Should return one result")]
@@ -237,9 +237,9 @@ public class PromiseCacheTests
         var key = new PromiseCacheKey("a", 1);
 
         // act
-        var resolved = cache.GetOrAddTask(key, _ => new Promise<string>(Task.FromResult("Quox")));
+        var resolved = cache.GetOrAddPromise(key, (_, _) => new Promise<string>(Task.FromResult("Quox")), new object());
 
         // assert
-        Assert.Equal("Quox", await resolved);
+        Assert.Equal("Quox", await resolved.Task);
     }
 }

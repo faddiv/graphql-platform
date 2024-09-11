@@ -22,7 +22,9 @@ public interface IPromiseCache
     /// </summary>
     /// <param name="key">A cache entry key.</param>
     /// <param name="createPromise">A factory to create the new task.</param>
+    /// <param name="state">A state value to pass the createPromise function.</param>
     /// <typeparam name="T">The task type.</typeparam>
+    /// <typeparam name="TState">The state type.</typeparam>
     /// <returns>
     /// Returns either the retrieved or new task from the cache.
     /// </returns>
@@ -32,7 +34,7 @@ public interface IPromiseCache
     /// <exception cref="ArgumentNullException">
     /// Throws if <paramref name="createPromise"/> is <c>null</c>.
     /// </exception>
-    Task<T> GetOrAddTask<T>(PromiseCacheKey key, Func<PromiseCacheKey, Promise<T>> createPromise);
+    Promise<T> GetOrAddPromise<T, TState>(PromiseCacheKey key, Func<PromiseCacheKey, TState, Promise<T>> createPromise, TState state);
 
     /// <summary>
     /// Tries to add a single task to the cache. It does nothing if the

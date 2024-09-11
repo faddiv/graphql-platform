@@ -35,7 +35,7 @@ public sealed class PromiseCache : IPromiseCache
     public int Usage => _promises.Count + _promises2.Count;
 
     /// <inheritdoc />
-    public Task<T> GetOrAddTask<T>(PromiseCacheKey key, Func<PromiseCacheKey, Promise<T>> createPromise)
+    public Promise<T> GetOrAddPromise<T, TState>(PromiseCacheKey key, Func<PromiseCacheKey, TState, Promise<T>> createPromise, TState state)
     {
         if (key.Type is null)
         {
@@ -47,9 +47,9 @@ public sealed class PromiseCache : IPromiseCache
             throw new ArgumentNullException(nameof(createPromise));
         }
 
-        var result = GetOrAddEntryInternal(key, static (key, args) => args(key), createPromise);
+        var result = GetOrAddEntryInternal(key, createPromise, state);
 
-        return result.promise.Task;
+        return result.promise;
     }
 
     /// <inheritdoc />
