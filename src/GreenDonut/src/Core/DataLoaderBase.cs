@@ -96,12 +96,13 @@ public abstract partial class DataLoaderBase<TKey, TValue>
 
     /// <inheritdoc />
     public Task<TValue?> LoadAsync(TKey key, CancellationToken cancellationToken = default)
-        => LoadAsync(key, CacheKeyType, AllowCachePropagation, cancellationToken);
+        => LoadAsync(key, CacheKeyType, AllowCachePropagation, true, cancellationToken);
 
     private Task<TValue?> LoadAsync(
         TKey key,
         string cacheKeyType,
         bool allowCachePropagation,
+        bool scheduleOnNewBatch,
         CancellationToken cancellationToken)
     {
         if (key is null)
@@ -116,7 +117,9 @@ public abstract partial class DataLoaderBase<TKey, TValue>
             CreatePromise,
             allowCachePropagation) ?? CreatePromise(cacheKey, allowCachePropagation);
 
-        if (!promise.TryInitialize(this, key, static (@this, key, p) => @this.InitializePromise(key, p)))
+        if (!promise.TryInitialize(
+            this, key, scheduleOnNewBatch,
+            static (@this, key, s, p) => @this.InitializePromise(key, s, p)))
         {
             _diagnosticEvents.ResolvedTaskFromCache(this, cacheKey, promise.Task);
         }
@@ -152,7 +155,13 @@ public abstract partial class DataLoaderBase<TKey, TValue>
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            tasks[index++] = LoadAsync(key, cacheKeyType, allowCachePropagation, cancellationToken);
+            tasks[index++] = LoadAsync(key, cacheKeyType, allowCachePropagation, false, cancellationToken);
+        }
+
+        var batch = _currentBatch;
+        if (batch is { IsScheduled: false  })
+        {
+            _batchScheduler.Schedule(() => ExecuteBatch(batch));
         }
 
         return WhenAll(tasks);
@@ -249,7 +258,7 @@ public abstract partial class DataLoaderBase<TKey, TValue>
     protected static string GetCacheKeyType(Type type)
         => type.FullName ?? type.Name;
 
-    private void InitializePromise(TKey key, Promise<TValue> promise)
+    private void InitializePromise(TKey key, bool scheduleOnNewBatch, Promise<TValue> promise)
     {
         var batch = _currentBatch;
         do
@@ -263,12 +272,16 @@ public abstract partial class DataLoaderBase<TKey, TValue>
             var originalBatch = Interlocked.CompareExchange(ref _currentBatch, newBatch, batch);
             if (!ReferenceEquals(originalBatch, batch))
             {
+                // TODO Parallel execution runs here and slows down execution by a lot.
                 BatchPool<TKey>.Shared.Return(newBatch);
                 batch = originalBatch;
                 continue;
             }
 
-            _batchScheduler.Schedule(() => ExecuteBatch(newBatch));
+            if(scheduleOnNewBatch || !newBatch.IsScheduled)
+            {
+                _batchScheduler.Schedule(() => ExecuteBatch(newBatch));
+            }
             batch = newBatch;
         } while (true);
     }

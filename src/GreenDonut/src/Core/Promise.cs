@@ -183,8 +183,8 @@ public class Promise<TValue> : IPromise
         => new(promise);
 
     public bool TryInitialize<TKey>(
-        DataLoaderBase<TKey,TValue> dataLoaderBase2, TKey key,
-        Action<DataLoaderBase<TKey,TValue>, TKey, Promise<TValue>> initialize) where TKey : notnull
+        DataLoaderBase<TKey,TValue> dataLoaderBase2, TKey key, bool scheduleOnNewBatch,
+        Action<DataLoaderBase<TKey,TValue>, TKey, bool, Promise<TValue>> initialize) where TKey : notnull
     {
         if (_initialized)
         {
@@ -198,7 +198,7 @@ public class Promise<TValue> : IPromise
                 return false;
             }
 
-            initialize(dataLoaderBase2, key, this);
+            initialize(dataLoaderBase2, key, scheduleOnNewBatch, this);
 
             _initialized = true;
         }
