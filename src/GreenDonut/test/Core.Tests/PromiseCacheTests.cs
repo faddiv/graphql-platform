@@ -135,7 +135,7 @@ public class PromiseCacheTests
 
         // assert
         var retrieved = cache.GetOrAddPromise(key, (_, _) => new Promise<string>("Baz"), new object());
-        Assert.NotSame(value, retrieved);
+        Assert.NotSame(value, retrieved.Task);
     }
 
     [Fact(DisplayName = "TryAdd: Should throw an argument null exception for value")]
@@ -147,7 +147,7 @@ public class PromiseCacheTests
         var key = new PromiseCacheKey("a", "Foo");
 
         // act
-        void Verify() => cache.TryAdd(key, default(Promise<string>));
+        void Verify() => cache.TryAdd(key, default(Promise<string>)!);
 
         // assert
         Assert.Throws<ArgumentNullException>("promise", Verify);
@@ -188,7 +188,7 @@ public class PromiseCacheTests
         var resolved = cache.GetOrAddPromise(key, (_, _) => new Promise<string>(Task.FromResult("Baz")), new object());
 
         Assert.True(added);
-        Assert.Same(expected.Task, resolved);
+        Assert.Same(expected.Task, resolved.Task);
     }
 
     [Fact(DisplayName = "TryAdd: Should result in 'Bar'")]
@@ -210,7 +210,7 @@ public class PromiseCacheTests
 
         Assert.True(addedFirst);
         Assert.False(addedSecond);
-        Assert.Same(expected, resolved);
+        Assert.Same(expected, resolved.Task);
     }
 
     [Fact(DisplayName = "GetOrAddTask: Should return new item if nothing is cached")]

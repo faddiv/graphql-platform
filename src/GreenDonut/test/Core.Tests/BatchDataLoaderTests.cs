@@ -40,8 +40,9 @@ public class BatchDataLoaderTests
     public async Task LoadTheSameKeyTwiceWillYieldSamePromise()
     {
         // arrange
+        var dispatcher = new ManualBatchScheduler();
         var dataLoader = new CustomBatchDataLoader(
-            new DelayDispatcher(),
+            dispatcher,
             new DataLoaderOptions());
 
         // act
@@ -50,6 +51,7 @@ public class BatchDataLoaderTests
 
         // assert
         Assert.Same(result1, result2);
+        await dispatcher.DispatchAsync();
         Assert.Equal("Value:1abc", await result1);
         Assert.Equal("Value:1abc", await result2);
     }

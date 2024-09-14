@@ -2,7 +2,6 @@ using System.Collections.Immutable;
 using GreenDonut.Helpers;
 
 using static GreenDonut.NoopDataLoaderDiagnosticEventListener;
-using System.ComponentModel.Design;
 
 
 #if NET6_0_OR_GREATER
@@ -22,7 +21,7 @@ public abstract partial class DataLoaderBase<TKey, TValue>
     private readonly IBatchScheduler _batchScheduler;
     private readonly int _maxBatchSize;
     private Batch<TKey>? _currentBatch;
-    private Lock _batchexchangeLock = new();
+    private Lock _batchExchangeLock = new();
 
 #if NET6_0_OR_GREATER
     private ImmutableDictionary<string, IDataLoader> _branches =
@@ -46,7 +45,7 @@ public abstract partial class DataLoaderBase<TKey, TValue>
     protected DataLoaderBase(IBatchScheduler batchScheduler, DataLoaderOptions? options = null)
     {
         options ??= new DataLoaderOptions();
-        _diagnosticEvents = options.DiagnosticEvents ?? NoopDataLoaderDiagnosticEventListener.Default;
+        _diagnosticEvents = options.DiagnosticEvents ?? Default;
         Cache = options.Cache;
         _ct = options.CancellationToken;
         _batchScheduler = batchScheduler;
@@ -124,8 +123,7 @@ public abstract partial class DataLoaderBase<TKey, TValue>
             key,
             static (key, state, prom) =>
             {
-                var batch = state.InitializePromise(key, prom);
-                state.EnsureBatchExecuted(batch);
+                state.EnsureBatchExecuted(state._currentBatch);
             },
             this))
         {
@@ -158,7 +156,6 @@ public abstract partial class DataLoaderBase<TKey, TValue>
         }
 
         var tasks = new Task<TValue?>[keys.Count];
-        var currentBatch = _currentBatch;
         var index = 0;
         foreach (var key in keys)
         {
@@ -168,25 +165,15 @@ public abstract partial class DataLoaderBase<TKey, TValue>
             var promise = CreateAndCachePromise(cacheKey, allowCachePropagation);
             if (!promise.TryInitialize(
                 key,
-                static (key, state, prom) =>
-                {
-                    var newBatch = state.@this.InitializePromise(key, prom);
-                    if(state.currentBatch is not null && newBatch != state.currentBatch)
-                    {
-                        state.@this.EnsureBatchExecuted(state.currentBatch);
-                    }
-                }, (currentBatch, @this: this)))
+                static (key, state, prom) => { },
+                (object?)null))
             {
                 _diagnosticEvents.ResolvedTaskFromCache(this, cacheKey, promise.Task);
             }
-            currentBatch = _currentBatch;
             tasks[index++] = promise.Task;
         }
 
-        if(currentBatch != null)
-        {
-            EnsureBatchExecuted(currentBatch);
-        }
+        EnsureBatchExecuted(_currentBatch);
 
         return WhenAll(tasks);
 
@@ -282,27 +269,6 @@ public abstract partial class DataLoaderBase<TKey, TValue>
     protected static string GetCacheKeyType(Type type)
         => type.FullName ?? type.Name;
 
-    private Batch<TKey> InitializePromise(TKey key, Promise<TValue?> promise)
-    {
-        var batch = _currentBatch;
-        if (batch is null)
-        {
-            batch = CreateNewBatch(batch);
-        }
-        do
-        {
-            // TODO could be already batched. Wont work this way.
-            if (batch.TryAdd(key, promise, _maxBatchSize))
-            {
-                return batch;
-            }
-
-            EnsureBatchExecuted(batch);
-
-            batch = CreateNewBatch(batch);
-        } while (true);
-    }
-
     private Batch<TKey> CreateNewBatch(Batch<TKey>? oldBatch)
     {
         var newBatch = _currentBatch;
@@ -311,7 +277,7 @@ public abstract partial class DataLoaderBase<TKey, TValue>
             return newBatch;
         }
 
-        lock (_batchexchangeLock)
+        lock (_batchExchangeLock)
         {
             newBatch = _currentBatch;
             if (newBatch is not null && newBatch != oldBatch)
@@ -320,20 +286,23 @@ public abstract partial class DataLoaderBase<TKey, TValue>
             }
 
             newBatch = BatchPool<TKey>.Shared.Get();
+            newBatch.MaxSize = _maxBatchSize;
             _currentBatch = newBatch;
             return newBatch;
         }
     }
 
-    private void EnsureBatchExecuted(Batch<TKey> batch)
+    private void EnsureBatchExecuted(Batch<TKey>? batch)
     {
-        batch.EnsureScheduled(_batchScheduler, static (b, state) => state.ExecuteBatch(b), this);
+        batch?.EnsureScheduled(_batchScheduler, static (b, state) => state.ExecuteBatch(b), this);
     }
 
     private async ValueTask ExecuteBatch(Batch<TKey> batch)
     {
         //Remove the batch only if it is still the same.
         Interlocked.CompareExchange(ref _currentBatch, null, batch);
+
+        batch.Close();
 
         var errors = false;
 
@@ -416,15 +385,23 @@ public abstract partial class DataLoaderBase<TKey, TValue>
 
     private Promise<TValue?> CreateAndCachePromise(PromiseCacheKey cacheKey, bool allowCachePropagation)
     {
-
         return Cache?.GetOrAddPromise(
-            cacheKey,
-            CreatePromise,
-            allowCachePropagation) ?? CreatePromise(cacheKey, allowCachePropagation);
+                cacheKey,
+                (key, state) => state.@this.CreatePromiseFromBatch(key, state.allowCachePropagation),
+                (@this: this, allowCachePropagation)) ?? CreatePromiseFromBatch(cacheKey, allowCachePropagation);
 
-        static Promise<TValue?> CreatePromise(PromiseCacheKey key, bool allowCachePropagationLocal)
+    }
+    private Promise<TValue?> CreatePromiseFromBatch(PromiseCacheKey cacheKey, bool allowCachePropagationLocal)
+    {
+        var currentBranch = _currentBatch ?? CreateNewBatch(null);
+        do
         {
-            return Promise<TValue?>.Create(!allowCachePropagationLocal);
-        }
+            if(currentBranch.TryGetOrCreatePromise(cacheKey, out Promise<TValue?>? promise))
+            {
+                return promise;
+            }
+            EnsureBatchExecuted(currentBranch);
+            currentBranch = CreateNewBatch(currentBranch);
+        } while (true);
     }
 }

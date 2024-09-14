@@ -22,6 +22,18 @@ public static class CompatibilityExtensions
             key,
             k => valueFactory(k, factoryArgument));
     }
+
+    public static bool TryAdd<TKey, TValue>(
+        this Dictionary<TKey, TValue> dictionary,
+        TKey key, TValue vaule) where TKey : notnull
+    {
+        if (dictionary.ContainsKey(key))
+        {
+            return false;
+        }
+        dictionary.Add(key, vaule);
+        return true;
+    }
 #endif
 }
 

@@ -60,7 +60,7 @@ public sealed class PromiseCache : IPromiseCache
             throw new ArgumentNullException(nameof(key));
         }
 
-        if (promise.Task is null)
+        if (promise?.Task is null)
         {
             throw new ArgumentNullException(nameof(promise));
         }
