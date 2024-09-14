@@ -43,10 +43,25 @@ internal partial class Batch<TKey> where TKey : notnull
         }
     }
 
-    public void Close()
+    public void EnsureScheduled<TState>(
+        IBatchScheduler batchScheduler,
+        Func<Batch<TKey>, TState, ValueTask> action,
+        TState state)
     {
+        if (_isScheduled)
+        {
+            return;
+        }
+
         lock (_lock)
         {
+            if (_isScheduled)
+            {
+                return;
+            }
+
+            batchScheduler.Schedule(() => action(this, state));
+
             _isScheduled = true;
         }
     }

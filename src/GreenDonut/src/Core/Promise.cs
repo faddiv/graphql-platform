@@ -182,9 +182,10 @@ public class Promise<TValue> : IPromise
     public static implicit operator Promise<TValue>(TaskCompletionSource<TValue> promise)
         => new(promise);
 
-    public bool TryInitialize<TKey>(
-        DataLoaderBase<TKey,TValue> dataLoaderBase2, TKey key, bool scheduleOnNewBatch,
-        Action<DataLoaderBase<TKey,TValue>, TKey, bool, Promise<TValue>> initialize) where TKey : notnull
+    public bool TryInitialize<TKey, TState>(
+        TKey key,
+        Action<TKey, TState, Promise<TValue?>> initialize,
+        TState state) where TKey : notnull
     {
         if (_initialized)
         {
@@ -198,7 +199,7 @@ public class Promise<TValue> : IPromise
                 return false;
             }
 
-            initialize(dataLoaderBase2, key, scheduleOnNewBatch, this);
+            initialize(key, state, this);
 
             _initialized = true;
         }

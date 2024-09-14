@@ -2,6 +2,8 @@ using System.Collections.Immutable;
 using GreenDonut.Helpers;
 
 using static GreenDonut.NoopDataLoaderDiagnosticEventListener;
+using System.ComponentModel.Design;
+
 
 #if NET6_0_OR_GREATER
 using GreenDonut.Projections;
@@ -20,6 +22,7 @@ public abstract partial class DataLoaderBase<TKey, TValue>
     private readonly IBatchScheduler _batchScheduler;
     private readonly int _maxBatchSize;
     private Batch<TKey>? _currentBatch;
+    private Lock _batchexchangeLock = new();
 
 #if NET6_0_OR_GREATER
     private ImmutableDictionary<string, IDataLoader> _branches =
@@ -91,7 +94,10 @@ public abstract partial class DataLoaderBase<TKey, TValue>
     protected internal DataLoaderOptions Options
         => new()
         {
-            MaxBatchSize = _maxBatchSize, Cache = Cache, DiagnosticEvents = _diagnosticEvents, CancellationToken = _ct,
+            MaxBatchSize = _maxBatchSize,
+            Cache = Cache,
+            DiagnosticEvents = _diagnosticEvents,
+            CancellationToken = _ct,
         };
 
     /// <inheritdoc />
@@ -112,24 +118,21 @@ public abstract partial class DataLoaderBase<TKey, TValue>
 
         PromiseCacheKey cacheKey = new(cacheKeyType, key);
 
-        var promise = Cache?.GetOrAddPromise(
-            cacheKey,
-            CreatePromise,
-            allowCachePropagation) ?? CreatePromise(cacheKey, allowCachePropagation);
+        var promise = CreateAndCachePromise(cacheKey, allowCachePropagation);
 
         if (!promise.TryInitialize(
-            this, key, scheduleOnNewBatch,
-            static (@this, key, s, p) => @this.InitializePromise(key, s, p)))
+            key,
+            static (key, state, prom) =>
+            {
+                var batch = state.InitializePromise(key, prom);
+                state.EnsureBatchExecuted(batch);
+            },
+            this))
         {
             _diagnosticEvents.ResolvedTaskFromCache(this, cacheKey, promise.Task);
         }
 
         return promise.Task;
-
-        static Promise<TValue?> CreatePromise(PromiseCacheKey key, bool allowCachePropagationLocal)
-        {
-            return Promise<TValue?>.Create(!allowCachePropagationLocal);
-        }
     }
 
     /// <inheritdoc />
@@ -149,19 +152,40 @@ public abstract partial class DataLoaderBase<TKey, TValue>
             throw new ArgumentNullException(nameof(keys));
         }
 
+        if(keys.Count == 0)
+        {
+            return Task.FromResult<IReadOnlyList<TValue?>>([]);
+        }
+
         var tasks = new Task<TValue?>[keys.Count];
+        var currentBatch = _currentBatch;
         var index = 0;
         foreach (var key in keys)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            tasks[index++] = LoadAsync(key, cacheKeyType, allowCachePropagation, false, cancellationToken);
+            PromiseCacheKey cacheKey = new(cacheKeyType, key);
+            var promise = CreateAndCachePromise(cacheKey, allowCachePropagation);
+            if (!promise.TryInitialize(
+                key,
+                static (key, state, prom) =>
+                {
+                    var newBatch = state.@this.InitializePromise(key, prom);
+                    if(state.currentBatch is not null && newBatch != state.currentBatch)
+                    {
+                        state.@this.EnsureBatchExecuted(state.currentBatch);
+                    }
+                }, (currentBatch, @this: this)))
+            {
+                _diagnosticEvents.ResolvedTaskFromCache(this, cacheKey, promise.Task);
+            }
+            currentBatch = _currentBatch;
+            tasks[index++] = promise.Task;
         }
 
-        var batch = _currentBatch;
-        if (batch is { IsScheduled: false  })
+        if(currentBatch != null)
         {
-            _batchScheduler.Schedule(() => ExecuteBatch(batch));
+            EnsureBatchExecuted(currentBatch);
         }
 
         return WhenAll(tasks);
@@ -258,32 +282,52 @@ public abstract partial class DataLoaderBase<TKey, TValue>
     protected static string GetCacheKeyType(Type type)
         => type.FullName ?? type.Name;
 
-    private void InitializePromise(TKey key, bool scheduleOnNewBatch, Promise<TValue> promise)
+    private Batch<TKey> InitializePromise(TKey key, Promise<TValue?> promise)
     {
         var batch = _currentBatch;
+        if (batch is null)
+        {
+            batch = CreateNewBatch(batch);
+        }
         do
         {
-            if (batch is not null && batch.TryAdd(key, promise, _maxBatchSize))
+            // TODO could be already batched. Wont work this way.
+            if (batch.TryAdd(key, promise, _maxBatchSize))
             {
-                return;
-            }
-            // TODO Lock is better way here.
-            var newBatch = BatchPool<TKey>.Shared.Get();
-            var originalBatch = Interlocked.CompareExchange(ref _currentBatch, newBatch, batch);
-            if (!ReferenceEquals(originalBatch, batch))
-            {
-                // TODO Parallel execution runs here and slows down execution by a lot.
-                BatchPool<TKey>.Shared.Return(newBatch);
-                batch = originalBatch;
-                continue;
+                return batch;
             }
 
-            if(scheduleOnNewBatch || !newBatch.IsScheduled)
-            {
-                _batchScheduler.Schedule(() => ExecuteBatch(newBatch));
-            }
-            batch = newBatch;
+            EnsureBatchExecuted(batch);
+
+            batch = CreateNewBatch(batch);
         } while (true);
+    }
+
+    private Batch<TKey> CreateNewBatch(Batch<TKey>? oldBatch)
+    {
+        var newBatch = _currentBatch;
+        if (newBatch is not null && newBatch != oldBatch)
+        {
+            return newBatch;
+        }
+
+        lock (_batchexchangeLock)
+        {
+            newBatch = _currentBatch;
+            if (newBatch is not null && newBatch != oldBatch)
+            {
+                return newBatch;
+            }
+
+            newBatch = BatchPool<TKey>.Shared.Get();
+            _currentBatch = newBatch;
+            return newBatch;
+        }
+    }
+
+    private void EnsureBatchExecuted(Batch<TKey> batch)
+    {
+        batch.EnsureScheduled(_batchScheduler, static (b, state) => state.ExecuteBatch(b), this);
     }
 
     private async ValueTask ExecuteBatch(Batch<TKey> batch)
@@ -293,8 +337,6 @@ public abstract partial class DataLoaderBase<TKey, TValue>
 
         var errors = false;
 
-        // Before start processing, the batch must be frozen.
-        batch.Close();
         var keys = batch.Keys;
 
         using (_diagnosticEvents.ExecuteBatch(this, keys))
@@ -369,6 +411,20 @@ public abstract partial class DataLoaderBase<TKey, TValue>
         {
             _diagnosticEvents.BatchItemError(key, result.Error!);
             promise.TrySetError(result.Error!);
+        }
+    }
+
+    private Promise<TValue?> CreateAndCachePromise(PromiseCacheKey cacheKey, bool allowCachePropagation)
+    {
+
+        return Cache?.GetOrAddPromise(
+            cacheKey,
+            CreatePromise,
+            allowCachePropagation) ?? CreatePromise(cacheKey, allowCachePropagation);
+
+        static Promise<TValue?> CreatePromise(PromiseCacheKey key, bool allowCachePropagationLocal)
+        {
+            return Promise<TValue?>.Create(!allowCachePropagationLocal);
         }
     }
 }
