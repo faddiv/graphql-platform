@@ -59,30 +59,6 @@ internal partial class Batch<TKey> where TKey : notnull
         }
     }
 
-    public bool TryAdd(TKey key, IPromise promise)
-    {
-        if (!CanAdd())
-        {
-            return false;
-        }
-
-        lock (_lock)
-        {
-            if (!CanAdd())
-            {
-                return false;
-            }
-
-            if (!_items.TryAdd(key, promise))
-            {
-                return false;
-            }
-
-            Interlocked.Increment(ref _size);
-            return true;
-        }
-    }
-
     public void EnsureScheduled(
         IBatchScheduler batchScheduler,
         Func<ValueTask> action)
