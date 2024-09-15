@@ -69,7 +69,7 @@ public class BatchDataLoaderTests_Own(ITestOutputHelper testOutputHelper)
     }
 
     [Fact]
-    public async Task Ensure_Large_Number_Of_Batches_Can_Be_Enqueued_Concurrently_Async()
+    public async Task Ensure_Large_Number_Of_Batches_With_Different_Values_Can_Be_Enqueued_Concurrently_Async()
     {
         // arrange
         using var cts = new CancellationTokenSource(5000);
@@ -90,6 +90,41 @@ public class BatchDataLoaderTests_Own(ITestOutputHelper testOutputHelper)
                     async () =>
                     {
                         var result = await dataLoader.LoadAsync(ii, ct);
+
+                        // assert
+                        Assert.Equal(500, result?.Length ?? 0);
+
+                    },
+                    ct));
+        }
+
+        await Task.WhenAll(tasks);
+        sw.Stop();
+        _testOutputHelper.WriteLine($"Elapsed: {sw.Elapsed} ExecutionCount: {dataLoader._executionCount}");
+    }
+
+    [Fact]
+    public async Task Ensure_Large_Number_Of_Batches_With_Few_Values_Can_Be_Enqueued_Concurrently_Async()
+    {
+        // arrange
+        using var cts = new CancellationTokenSource(5000);
+        var ct = cts.Token;
+        var services = new ServiceCollection()
+            .AddScoped<IBatchScheduler, DelayDispatcher>()
+            .AddDataLoader<TestDataLoader>()
+            .BuildServiceProvider();
+        var dataLoader = services.GetRequiredService<TestDataLoader>();
+
+        var sw = Stopwatch.StartNew();
+        // act
+        List<Task> tasks = new();
+        foreach (var ii in Enumerable.Range(0, 5000))
+        {
+            tasks.Add(
+                Task.Run(
+                    async () =>
+                    {
+                        var result = await dataLoader.LoadAsync(ii%10, ct);
 
                         // assert
                         Assert.Equal(500, result?.Length ?? 0);

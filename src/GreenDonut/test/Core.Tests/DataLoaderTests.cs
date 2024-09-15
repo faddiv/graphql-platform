@@ -76,8 +76,7 @@ public class DataLoaderTests(ITestOutputHelper output)
         var loadResult = loader.LoadAsync(key);
 
         // assert
-        await Task.Delay(25);
-        batchScheduler.Dispatch();
+        await batchScheduler.DispatchAsync();
         (await loadResult).MatchSnapshot();
     }
 
@@ -115,8 +114,7 @@ public class DataLoaderTests(ITestOutputHelper output)
         var loadResult = loader.LoadAsync(key);
 
         // assert
-        await Task.Delay(25);
-        batchScheduler.Dispatch();
+        await batchScheduler.DispatchAsync();
         (await loadResult).MatchSnapshot();
     }
 
@@ -134,8 +132,7 @@ public class DataLoaderTests(ITestOutputHelper output)
 
         // assert
         var task = Assert.ThrowsAsync<InvalidOperationException>(Verify);
-        await Task.Delay(25);
-        batchScheduler.Dispatch();
+        await batchScheduler.DispatchAsync();
 
         await task;
     }
@@ -168,8 +165,7 @@ public class DataLoaderTests(ITestOutputHelper output)
         var loadResult = loader.LoadAsync(keys);
 
         // assert
-        await Task.Delay(25);
-        batchScheduler.Dispatch();
+        await batchScheduler.DispatchAsync();
         Assert.Empty(await loadResult);
     }
 
@@ -187,8 +183,7 @@ public class DataLoaderTests(ITestOutputHelper output)
         var loadResult = loader.LoadAsync(keys);
 
         // assert
-        await Task.Delay(25);
-        batchScheduler.Dispatch();
+        await batchScheduler.DispatchAsync();
         (await loadResult).MatchSnapshot();
     }
 
@@ -221,8 +216,7 @@ public class DataLoaderTests(ITestOutputHelper output)
         var loadResult = loader.LoadAsync(keys, CancellationToken.None);
 
         // assert
-        await Task.Delay(25);
-        batchScheduler.Dispatch();
+        await batchScheduler.DispatchAsync();
         Assert.Empty(await loadResult);
     }
 
@@ -237,7 +231,7 @@ public class DataLoaderTests(ITestOutputHelper output)
 
         // act
         var loadResult = loader.LoadAsync(keys, CancellationToken.None);
-        batchScheduler.Dispatch();
+        await batchScheduler.DispatchAsync();
 
         // assert
         (await loadResult).MatchSnapshot();
@@ -276,7 +270,7 @@ public class DataLoaderTests(ITestOutputHelper output)
 
         // act
         var loadResult = loader.LoadAsync(keys, CancellationToken.None);
-        batchScheduler.Dispatch();
+        await batchScheduler.DispatchAsync();
 
         // assert
         (await loadResult).MatchSnapshot();
@@ -318,7 +312,7 @@ public class DataLoaderTests(ITestOutputHelper output)
 
         // act
         var loadResult = loader.LoadAsync(requestKeys);
-        batchScheduler.Dispatch();
+        await batchScheduler.DispatchAsync();
 
         // assert
         (await loadResult).MatchSnapshot();
@@ -330,7 +324,6 @@ public class DataLoaderTests(ITestOutputHelper output)
     public async Task LoadKeyAndValueCountNotEqual()
     {
         // arrange
-        var expectedException = Errors.CreateKeysAndValuesMustMatch(4, 3);
 
         var repository = new Dictionary<string, string>
         {
@@ -338,6 +331,8 @@ public class DataLoaderTests(ITestOutputHelper output)
             { "Bar", "Baz" },
             { "Baz", "Foo" },
         };
+
+        int failedNumber = -1;
 
         ValueTask Fetch(
             IReadOnlyList<string> keys,
@@ -351,6 +346,10 @@ public class DataLoaderTests(ITestOutputHelper output)
                 if (repository.TryGetValue(keys[i], out var result))
                 {
                     span[i] = result;
+                }
+                else
+                {
+                    failedNumber = i;
                 }
             }
 
@@ -368,10 +367,12 @@ public class DataLoaderTests(ITestOutputHelper output)
         var task =
             Assert.ThrowsAsync<InvalidOperationException>(Verify);
 
-        batchScheduler.Dispatch();
+        await batchScheduler.DispatchAsync();
 
         var actualException = await task;
 
+        Assert.NotEqual(-1, failedNumber);
+        var expectedException = Errors.CreateKeysAndValuesMustMatch(4, failedNumber);
         Assert.Equal(expectedException.Message, actualException.Message);
     }
 
@@ -396,7 +397,7 @@ public class DataLoaderTests(ITestOutputHelper output)
         // assert
         var task = Assert.ThrowsAsync<Exception>(Verify);
 
-        batchScheduler.Dispatch();
+        await batchScheduler.DispatchAsync();
 
         var actualException = await task;
 
@@ -487,7 +488,7 @@ public class DataLoaderTests(ITestOutputHelper output)
             output.WriteLine("Wait");
             await Task.Delay(25, ct);
             output.WriteLine("Dispatch");
-            batchScheduler.Dispatch();
+            await batchScheduler.DispatchAsync();
         }
 
         // assert
@@ -653,8 +654,7 @@ public class DataLoaderTests(ITestOutputHelper output)
         var loadResult = loader.LoadAsync(key);
 
         // assert
-        await Task.Delay(25);
-        batchScheduler.Dispatch();
+        await batchScheduler.DispatchAsync();
         (await loadResult).MatchSnapshot();
     }
 
@@ -674,8 +674,7 @@ public class DataLoaderTests(ITestOutputHelper output)
         var task =
             Assert.ThrowsAsync<InvalidOperationException>(Verify);
 
-        await Task.Delay(25);
-        batchScheduler.Dispatch();
+        await batchScheduler.DispatchAsync();
 
         await task;
     }
@@ -724,8 +723,7 @@ public class DataLoaderTests(ITestOutputHelper output)
         var loadResult = loader.LoadAsync(keys);
 
         // assert
-        await Task.Delay(25);
-        batchScheduler.Dispatch();
+        await batchScheduler.DispatchAsync();
         (await loadResult).MatchSnapshot();
     }
 
@@ -774,8 +772,7 @@ public class DataLoaderTests(ITestOutputHelper output)
         var loadResult = loader.LoadAsync(keys);
 
         // assert
-        await Task.Delay(25);
-        batchScheduler.Dispatch();
+        await batchScheduler.DispatchAsync();
         (await loadResult).MatchSnapshot();
     }
 

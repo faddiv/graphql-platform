@@ -1,17 +1,20 @@
+using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using GreenDonut.Helpers;
+using Microsoft.Extensions.ObjectPool;
 
 namespace GreenDonut;
 
 internal partial class Batch<TKey> where TKey : notnull
 {
-    private readonly Dictionary<TKey, IPromise> _items = [];
+    private readonly ConcurrentDictionary<TKey, IPromise> _items = [];
     private readonly Lock _lock = new();
     private BatchStatus _status = BatchStatus.Open;
+    private int _size;
 
     public int MaxSize { get; set; }
 
-    public int Size => _items.Count;
+    public int Size => _size;
 
     public IReadOnlyList<TKey> Keys => _status == BatchStatus.Closed ? [.. _items.Keys] : [];
 
@@ -19,63 +22,40 @@ internal partial class Batch<TKey> where TKey : notnull
         PromiseCacheKey cacheKey,
         [NotNullWhen(true)] out Promise<TValue?>? promise)
     {
+        var key = GetKey(cacheKey);
+
         if (!CanAdd())
         {
+            if(_items.TryGetValue(key, out var value))
+            {
+                promise = (Promise<TValue?>)value;
+                return true;
+            }
+
             promise = null;
             return false;
         }
 
-        lock (_lock)
+        var holder = ValueHolder.Pool.Get();
+
+        try
         {
-            if (!CanAdd())
+            promise = (Promise<TValue?>)_items.GetOrAdd(key, static (_, state) =>
             {
-                promise = null;
-                return false;
-            }
+                state.Promise = Promise<TValue?>.Create();
+                return state.Promise;
+            }, holder);
 
-            var key = GetKey(cacheKey);
-
-            if(_items.TryGetValue(key, out var result))
+            if (ReferenceEquals(holder.Promise, promise))
             {
-                promise = (Promise<TValue?>)result;
-                return true;
+                Interlocked.Increment(ref _size);
             }
-            promise = Promise<TValue?>.Create();
-            _items.Add(key, promise);
             return true;
         }
-    }
-
-    public bool TryGetOrCreatePromise<TValue, TState>(
-        PromiseCacheKey cacheKey,
-        Func<PromiseCacheKey, TState, Promise<TValue?>> createPromise,
-        TState state,
-        [NotNullWhen(true)]out Promise<TValue?>? promise)
-    {
-        if(!CanAdd())
+        finally
         {
-            promise = null;
-            return false;
-        }
-
-        lock (_lock)
-        {
-            if (!CanAdd())
-            {
-                promise = null;
-                return false;
-            }
-
-            var key = GetKey(cacheKey);
-
-            promise = createPromise(cacheKey, state);
-            if (_items.TryAdd(key, promise))
-            {
-                return true;
-            }
-
-            promise = null;
-            return false;
+            holder.Promise = null;
+            ValueHolder.Pool.Return(holder);
         }
     }
 
@@ -98,26 +78,21 @@ internal partial class Batch<TKey> where TKey : notnull
                 return false;
             }
 
+            Interlocked.Increment(ref _size);
             return true;
         }
     }
 
-    public bool TryAdd(PromiseCacheKey cacheKey, IPromise promise)
-    {
-        return TryAdd(GetKey(cacheKey), promise);
-    }
-
-    public void EnsureScheduled<TState>(
+    public void EnsureScheduled(
         IBatchScheduler batchScheduler,
-        Func<Batch<TKey>, TState, ValueTask> action,
-        TState state)
+        Func<ValueTask> action)
     {
         if (_status != BatchStatus.Open)
         {
             return;
         }
 
-        var executeBatch = false;
+        bool executeBatch;
 
         lock (_lock)
         {
@@ -133,7 +108,7 @@ internal partial class Batch<TKey> where TKey : notnull
 
         if (executeBatch)
         {
-            batchScheduler.Schedule(() => action(this, state));
+            batchScheduler.Schedule(action);
         }
     }
 
@@ -162,7 +137,7 @@ internal partial class Batch<TKey> where TKey : notnull
             return false;
         }
 
-        if (MaxSize > 0 && _items.Count >= MaxSize)
+        if (MaxSize > 0 && _size >= MaxSize)
         {
             return false;
         }
@@ -179,4 +154,10 @@ internal partial class Batch<TKey> where TKey : notnull
 
         return key;
     }
+}
+
+internal class ValueHolder
+{
+    public static readonly ObjectPool<ValueHolder> Pool = ObjectPool.Create<ValueHolder>();
+    public IPromise? Promise { get; set; }
 }

@@ -287,7 +287,10 @@ public sealed class PromiseCache : IPromiseCache
                     promise.OnComplete(NotifySubscribers, new CacheAndKey(cache, Key));
                 }
 
-                cache.IncrementInternal();
+                if (incrementUsage)
+                {
+                    cache.IncrementInternal();
+                }
 
                 _initialized = true;
             }

@@ -113,16 +113,18 @@ public abstract partial class DataLoaderBase<TKey, TValue>
 
         var promise = CreateAndCachePromise(cacheKey, allowCachePropagation);
 
-        if (!promise.TryInitialize(
+        if (promise.TryInitialize(
             key,
             static (key, state, prom) =>
             {
-                state.EnsureBatchExecuted(state._currentBatch);
             },
             this))
         {
-            _diagnosticEvents.ResolvedTaskFromCache(this, cacheKey, promise.Task);
+            EnsureBatchExecuted(_currentBatch);
+            return promise.Task;
         }
+
+        _diagnosticEvents.ResolvedTaskFromCache(this, cacheKey, promise.Task);
 
         return promise.Task;
     }
@@ -288,7 +290,7 @@ public abstract partial class DataLoaderBase<TKey, TValue>
 
     private void EnsureBatchExecuted(Batch<TKey>? batch)
     {
-        batch?.EnsureScheduled(_batchScheduler, static (b, state) => state.ExecuteBatch(b), this);
+        batch?.EnsureScheduled(_batchScheduler, () => ExecuteBatch(batch));
     }
 
     private async ValueTask ExecuteBatch(Batch<TKey> batch)
