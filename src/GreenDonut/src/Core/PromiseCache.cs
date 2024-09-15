@@ -15,6 +15,7 @@ public sealed class PromiseCache : IPromiseCache
     private readonly ConcurrentStack<IPromise> _promises2 = new();
     private readonly int _size;
     private readonly int _order;
+    private int _usage = 0;
 
     /// <summary>
     /// Creates a new instance of <see cref="PromiseCache"/>.
@@ -32,7 +33,7 @@ public sealed class PromiseCache : IPromiseCache
     public int Size => _size;
 
     /// <inheritdoc />
-    public int Usage => _promises.Count + _promises2.Count;
+    public int Usage => _usage;
 
     /// <inheritdoc />
     public Promise<T> GetOrAddPromise<T, TState>(PromiseCacheKey key, Func<PromiseCacheKey, TState, Promise<T>> createPromise, TState state)
@@ -91,7 +92,13 @@ public sealed class PromiseCache : IPromiseCache
     /// <inheritdoc />
     public bool TryRemove(PromiseCacheKey key)
     {
-        return _promises.TryRemove(key, out _);
+        if (!_promises.TryRemove(key, out _))
+        {
+            return false;
+        }
+
+        IncrementInternal(-1);
+        return true;
     }
 
     /// <inheritdoc />
@@ -100,6 +107,7 @@ public sealed class PromiseCache : IPromiseCache
         var promise = Promise<T>.Create(value, cloned: true);
 
         _promises2.Push(promise);
+        IncrementInternal();
 
         if (!_subscriptions.TryGetValue(typeof(T), out var subscriptions))
         {
@@ -133,6 +141,7 @@ public sealed class PromiseCache : IPromiseCache
         }
 
         _promises2.PushRange(buffer, 0, values.Length);
+        IncrementInternal(values.Length);
 
         // now we notify all subscribers that are interested in the current promise type.
         if (_subscriptions.TryGetValue(typeof(T), out var subscriptions))
@@ -196,6 +205,7 @@ public sealed class PromiseCache : IPromiseCache
         _promises.Clear();
         _promises2.Clear();
         _subscriptions.Clear();
+        _usage = 0;
     }
 
     private (bool newEntry, Promise<T> promise) GetOrAddEntryInternal<T, TState>(
@@ -203,11 +213,11 @@ public sealed class PromiseCache : IPromiseCache
         Func<PromiseCacheKey, TState, Promise<T>> createPromise,
         TState state)
     {
-        var usage = Usage;
+        var usage = _usage;
         if (usage > _order && usage >= _size)
         {
             var nonCachedEntry = new Entry(key, createPromise(key, state));
-            return nonCachedEntry.EnsureInitialized<T>(this);
+            return nonCachedEntry.EnsureInitialized<T>(this, false);
         }
 
         var entry = _promises.GetOrAdd(
@@ -215,7 +225,7 @@ public sealed class PromiseCache : IPromiseCache
             static (k, args) => new Entry(k, args.createPromise(k, args.state)),
             (createPromise, state));
 
-        return entry.EnsureInitialized<T>(this);
+        return entry.EnsureInitialized<T>(this, true);
     }
 
     private static void NotifySubscribers<T>(Promise<T> promise, CacheAndKey state)
@@ -252,7 +262,7 @@ public sealed class PromiseCache : IPromiseCache
         public PromiseCacheKey Key { get; } = key;
         public IPromise Promise { get; } = promise;
 
-        public (bool newEntry, Promise<T> promise) EnsureInitialized<T>(PromiseCache cache)
+        public (bool newEntry, Promise<T> promise) EnsureInitialized<T>(PromiseCache cache, bool incrementUsage)
         {
             if (Promise is not Promise<T> promise)
             {
@@ -277,11 +287,18 @@ public sealed class PromiseCache : IPromiseCache
                     promise.OnComplete(NotifySubscribers, new CacheAndKey(cache, Key));
                 }
 
+                cache.IncrementInternal();
+
                 _initialized = true;
             }
 
             return (true, promise);
         }
+    }
+
+    private void IncrementInternal(int value = 1)
+    {
+        Interlocked.Add(ref _usage, value);
     }
 
     private sealed class Subscription<T>(
