@@ -1,3 +1,5 @@
+using Microsoft.Extensions.DependencyInjection;
+using System.Diagnostics;
 using Xunit;
 
 namespace GreenDonut;
@@ -61,6 +63,60 @@ public class BatchDataLoaderTests_Own
 
         // assert
         Assert.Equal(1, dataLoader.ExecutionCount);
+    }
+
+    [Fact]
+    public static async Task Ensure_Large_Number_Of_Batches_Can_Be_Enqueued_Concurrently_Async()
+    {
+        // arrange
+        using var cts = new CancellationTokenSource(5000);
+        var ct = cts.Token;
+        var services = new ServiceCollection()
+            .AddScoped<IBatchScheduler, DelayDispatcher>()
+            .AddDataLoader<TestDataLoader>()
+            .BuildServiceProvider();
+        var dataLoader = services.GetRequiredService<TestDataLoader>();
+
+        var sw = Stopwatch.StartNew();
+        // act
+        List<Task> tasks = new();
+        foreach (var ii in Enumerable.Range(0, 5000))
+        {
+            tasks.Add(
+                Task.Run(
+                    async () =>
+                    {
+                        var result = await dataLoader.LoadAsync(ii, ct);
+
+                        // assert
+                        Assert.Equal(500, result?.Length ?? 0);
+
+                    },
+                    ct));
+        }
+
+        await Task.WhenAll(tasks);
+        sw.Stop();
+        Assert.Fail($"Time: {sw.Elapsed.ToString()} Execution Count: {dataLoader._executionCount}");
+    }
+
+    private sealed class TestDataLoader(
+        IBatchScheduler batchScheduler,
+        DataLoaderOptions options)
+        : BatchDataLoader<int, int[]>(batchScheduler, options)
+    {
+        public int _executionCount = 0;
+        protected override async Task<IReadOnlyDictionary<int, int[]>> LoadBatchAsync(
+            IReadOnlyList<int> runNumbers,
+            CancellationToken cancellationToken)
+        {
+            await Task.Delay(300, cancellationToken).ConfigureAwait(false);
+
+            Interlocked.Increment(ref _executionCount);
+            return runNumbers
+                .Select(t => (t, Enumerable.Range(0, 500)))
+                .ToDictionary(t => t.Item1, t => t.Item2.ToArray());
+        }
     }
 
     public class CustomBatchDataLoader(IBatchScheduler batchScheduler, DataLoaderOptions options)

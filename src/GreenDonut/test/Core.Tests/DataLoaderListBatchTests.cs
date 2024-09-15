@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -39,9 +40,10 @@ public static class DataLoaderListBatchTests
             .BuildServiceProvider();
         var dataLoader = services.GetRequiredService<TestDataLoader>();
 
+        var sw = Stopwatch.StartNew();
         // act
         List<Task> tasks = new();
-        foreach (var _ in Enumerable.Range(0, 10))
+        foreach (var ii in Enumerable.Range(0, 10))
         {
             tasks.Add(
                 Task.Run(
@@ -51,11 +53,14 @@ public static class DataLoaderListBatchTests
 
                         // assert
                         Assert.Equal(5000, result.Count);
+                        
                     },
                     ct));
         }
 
         await Task.WhenAll(tasks);
+        sw.Stop();
+        Assert.Fail($"Time: {sw.Elapsed.ToString()} Execution Count: {dataLoader._executionCount}");
     }
 
     [Fact]
@@ -140,12 +145,14 @@ public static class DataLoaderListBatchTests
         DataLoaderOptions options)
         : BatchDataLoader<int, int[]>(batchScheduler, options)
     {
+        public int _executionCount = 0;
         protected override async Task<IReadOnlyDictionary<int, int[]>> LoadBatchAsync(
             IReadOnlyList<int> runNumbers,
             CancellationToken cancellationToken)
         {
             await Task.Delay(300, cancellationToken).ConfigureAwait(false);
 
+            Interlocked.Increment(ref _executionCount);
             return runNumbers
                 .Select(t => (t, Enumerable.Range(0, 500)))
                 .ToDictionary(t => t.Item1, t => t.Item2.ToArray());
