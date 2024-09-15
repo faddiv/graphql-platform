@@ -1,11 +1,14 @@
 using Microsoft.Extensions.DependencyInjection;
 using System.Diagnostics;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace GreenDonut;
 
-public class BatchDataLoaderTests_Own
+public class BatchDataLoaderTests_Own(ITestOutputHelper testOutputHelper)
 {
+    private readonly ITestOutputHelper _testOutputHelper = testOutputHelper;
+
     [Fact]
     public async Task LoadTheSameKeyOnDifferentScheduleYieldTheSameResult()
     {
@@ -66,7 +69,7 @@ public class BatchDataLoaderTests_Own
     }
 
     [Fact]
-    public static async Task Ensure_Large_Number_Of_Batches_Can_Be_Enqueued_Concurrently_Async()
+    public async Task Ensure_Large_Number_Of_Batches_Can_Be_Enqueued_Concurrently_Async()
     {
         // arrange
         using var cts = new CancellationTokenSource(5000);
@@ -97,7 +100,7 @@ public class BatchDataLoaderTests_Own
 
         await Task.WhenAll(tasks);
         sw.Stop();
-        Assert.Fail($"Time: {sw.Elapsed.ToString()} Execution Count: {dataLoader._executionCount}");
+        _testOutputHelper.WriteLine($"Elapsed: {sw.Elapsed} ExecutionCount: {dataLoader._executionCount}");
     }
 
     private sealed class TestDataLoader(

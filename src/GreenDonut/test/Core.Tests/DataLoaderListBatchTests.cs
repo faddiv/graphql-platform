@@ -1,13 +1,16 @@
 using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace GreenDonut;
 
-public static class DataLoaderListBatchTests
+public class DataLoaderListBatchTests(ITestOutputHelper testOutputHelper)
 {
+    private readonly ITestOutputHelper _testOutputHelper = testOutputHelper;
+
     [Fact]
-    public static async Task Overflow_InternalBatch_Async()
+    public async Task Overflow_InternalBatch_Async()
     {
         // arrange
         using var cts = new CancellationTokenSource(5000);
@@ -30,7 +33,7 @@ public static class DataLoaderListBatchTests
     }
 
     [Fact]
-    public static async Task Ensure_Multiple_Large_Batches_Can_Be_Enqueued_Concurrently_Async()
+    public async Task Ensure_Multiple_Large_Batches_Can_Be_Enqueued_Concurrently_Async()
     {
         // arrange
         using var cts = new CancellationTokenSource(5000);
@@ -53,18 +56,18 @@ public static class DataLoaderListBatchTests
 
                         // assert
                         Assert.Equal(5000, result.Count);
-                        
+
                     },
                     ct));
         }
 
         await Task.WhenAll(tasks);
         sw.Stop();
-        Assert.Fail($"Time: {sw.Elapsed.ToString()} Execution Count: {dataLoader._executionCount}");
+        _testOutputHelper.WriteLine($"Elapsed: {sw.Elapsed} ExecutionCount: {dataLoader._executionCount}");
     }
 
     [Fact]
-    public static async Task Ensure_No_Buffer_Leakage_When_Batch_Is_Overrun_Async()
+    public async Task Ensure_No_Buffer_Leakage_When_Batch_Is_Overrun_Async()
     {
         using var cts = new CancellationTokenSource(5000);
         var services = new ServiceCollection()
@@ -89,7 +92,7 @@ public static class DataLoaderListBatchTests
     }
 
     [Fact]
-    public static async Task Ensure_No_Buffer_Leakage_With_Single_Calls_Async()
+    public async Task Ensure_No_Buffer_Leakage_With_Single_Calls_Async()
     {
         using var cts = new CancellationTokenSource(5000);
         var services = new ServiceCollection()
@@ -116,7 +119,7 @@ public static class DataLoaderListBatchTests
     }
 
     [Fact]
-    public static async Task Ensure_No_Buffer_Leakage_With_Batch_Calls_Async()
+    public async Task Ensure_No_Buffer_Leakage_With_Batch_Calls_Async()
     {
         using var cts = new CancellationTokenSource(5000);
         var services = new ServiceCollection()
