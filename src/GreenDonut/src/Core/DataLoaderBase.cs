@@ -3,13 +3,6 @@ using GreenDonut.Helpers;
 
 using static GreenDonut.NoopDataLoaderDiagnosticEventListener;
 
-
-#if NET6_0_OR_GREATER
-using GreenDonut.Projections;
-#else
-using GreenDonut.Helpers;
-#endif
-
 namespace GreenDonut;
 
 public abstract partial class DataLoaderBase<TKey, TValue>
@@ -101,19 +94,20 @@ public abstract partial class DataLoaderBase<TKey, TValue>
 
     /// <inheritdoc />
     public Task<TValue?> LoadAsync(TKey key, CancellationToken cancellationToken = default)
-        => LoadAsync(key, CacheKeyType, AllowCachePropagation, true, cancellationToken);
+        => LoadAsync(key, CacheKeyType, AllowCachePropagation, cancellationToken);
 
     private Task<TValue?> LoadAsync(
         TKey key,
         string cacheKeyType,
         bool allowCachePropagation,
-        bool scheduleOnNewBatch,
         CancellationToken cancellationToken)
     {
         if (key is null)
         {
             throw new ArgumentNullException(nameof(key));
         }
+
+        cancellationToken.ThrowIfCancellationRequested();
 
         PromiseCacheKey cacheKey = new(cacheKeyType, key);
 

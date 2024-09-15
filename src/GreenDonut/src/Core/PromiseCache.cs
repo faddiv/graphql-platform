@@ -123,16 +123,16 @@ public sealed class PromiseCache : IPromiseCache
     /// <inheritdoc />
     public void PublishMany<T>(ReadOnlySpan<T> values)
     {
-        var buffer = ArrayPool<IPromise>.Shared.Rent(values.Count);
-        var span = buffer.AsSpan().Slice(0, values.Count);
+        var buffer = ArrayPool<IPromise>.Shared.Rent(values.Length);
+        var span = buffer.AsSpan().Slice(0, values.Length);
 
-        for (var i = 0; i < values.Count; i++)
+        for (var i = 0; i < values.Length; i++)
         {
             var promise = Promise<T>.Create(values[i], cloned: true);
             span[i] = promise;
         }
 
-        _promises2.PushRange(buffer, 0, values.Count);
+        _promises2.PushRange(buffer, 0, values.Length);
 
         // now we notify all subscribers that are interested in the current promise type.
         if (_subscriptions.TryGetValue(typeof(T), out var subscriptions))
