@@ -13,8 +13,8 @@ public abstract partial class DataLoaderBase<TKey, TValue>
     private readonly CancellationToken _ct;
     private readonly IBatchScheduler _batchScheduler;
     private readonly int _maxBatchSize;
+    private readonly Lock _batchExchangeLock = new();
     private Batch<TKey>? _currentBatch;
-    private Lock _batchExchangeLock = new();
 
 #if NET6_0_OR_GREATER
     private ImmutableDictionary<string, IDataLoader> _branches =
@@ -113,19 +113,19 @@ public abstract partial class DataLoaderBase<TKey, TValue>
 
         var promise = CreateAndCachePromise(cacheKey, allowCachePropagation);
 
-        if (promise.TryInitialize(
+        if (!promise.TryInitialize(
             key,
             static (key, state, prom) =>
             {
             },
             this))
         {
-            EnsureBatchExecuted(_currentBatch);
+            _diagnosticEvents.ResolvedTaskFromCache(this, cacheKey, promise.Task);
+
             return promise.Task;
         }
 
-        _diagnosticEvents.ResolvedTaskFromCache(this, cacheKey, promise.Task);
-
+        EnsureBatchExecuted(_currentBatch);
         return promise.Task;
     }
 
