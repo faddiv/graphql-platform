@@ -14,6 +14,19 @@ public class ManualBatchScheduler : IBatchScheduler
         }
     }
 
+    public Task DispatchAsync()
+    {
+        var tasks = new List<Task>();
+        while (_queue.TryDequeue(out var dispatch))
+        {
+
+            tasks.Add(Task.Run(async () => await dispatch()));
+        }
+        return tasks.Count > 0
+            ? Task.WhenAll(tasks)
+            : Task.CompletedTask;
+    }
+
     public void Schedule(Func<ValueTask> dispatch)
     {
         _queue.Enqueue(dispatch);

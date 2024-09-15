@@ -1,12 +1,16 @@
+using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace GreenDonut;
 
-public static class DataLoaderListBatchTests
+public class DataLoaderListBatchTests(ITestOutputHelper testOutputHelper)
 {
+    private readonly ITestOutputHelper _testOutputHelper = testOutputHelper;
+
     [Fact]
-    public static async Task Overflow_InternalBatch_Async()
+    public async Task Overflow_InternalBatch_Async()
     {
         // arrange
         using var cts = new CancellationTokenSource(5000);
@@ -29,7 +33,7 @@ public static class DataLoaderListBatchTests
     }
 
     [Fact]
-    public static async Task Ensure_Multiple_Large_Batches_Can_Be_Enqueued_Concurrently_Async()
+    public async Task Ensure_Multiple_Large_Batches_Can_Be_Enqueued_Concurrently_Async()
     {
         // arrange
         using var cts = new CancellationTokenSource(5000);
@@ -40,6 +44,7 @@ public static class DataLoaderListBatchTests
         var dataLoader = services.GetRequiredService<TestDataLoader>();
 
         // act
+        var sw = Stopwatch.StartNew();
         List<Task> tasks = new();
         foreach (var _ in Enumerable.Range(0, 10))
         {
@@ -56,10 +61,12 @@ public static class DataLoaderListBatchTests
         }
 
         await Task.WhenAll(tasks);
+        sw.Stop();
+        _testOutputHelper.WriteLine($"Elapsed: {sw.Elapsed} ExecutionCount: {dataLoader._executionCount}");
     }
 
     [Fact]
-    public static async Task Ensure_No_Buffer_Leakage_When_Batch_Is_Overrun_Async()
+    public async Task Ensure_No_Buffer_Leakage_When_Batch_Is_Overrun_Async()
     {
         using var cts = new CancellationTokenSource(5000);
         var services = new ServiceCollection()
@@ -84,7 +91,7 @@ public static class DataLoaderListBatchTests
     }
 
     [Fact]
-    public static async Task Ensure_No_Buffer_Leakage_With_Single_Calls_Async()
+    public async Task Ensure_No_Buffer_Leakage_With_Single_Calls_Async()
     {
         using var cts = new CancellationTokenSource(5000);
         var services = new ServiceCollection()
@@ -111,7 +118,7 @@ public static class DataLoaderListBatchTests
     }
 
     [Fact]
-    public static async Task Ensure_No_Buffer_Leakage_With_Batch_Calls_Async()
+    public async Task Ensure_No_Buffer_Leakage_With_Batch_Calls_Async()
     {
         using var cts = new CancellationTokenSource(5000);
         var services = new ServiceCollection()
@@ -140,12 +147,14 @@ public static class DataLoaderListBatchTests
         DataLoaderOptions options)
         : BatchDataLoader<int, int[]>(batchScheduler, options)
     {
+        public int _executionCount = 0;
         protected override async Task<IReadOnlyDictionary<int, int[]>> LoadBatchAsync(
             IReadOnlyList<int> runNumbers,
             CancellationToken cancellationToken)
         {
             await Task.Delay(300, cancellationToken).ConfigureAwait(false);
 
+            Interlocked.Increment(ref _executionCount);
             return runNumbers
                 .Select(t => (t, Enumerable.Range(0, 500)))
                 .ToDictionary(t => t.Item1, t => t.Item2.ToArray());
