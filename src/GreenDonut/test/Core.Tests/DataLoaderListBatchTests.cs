@@ -43,8 +43,8 @@ public class DataLoaderListBatchTests(ITestOutputHelper testOutputHelper)
             .BuildServiceProvider();
         var dataLoader = services.GetRequiredService<TestDataLoader>();
 
-        var sw = Stopwatch.StartNew();
         // act
+        var sw = Stopwatch.StartNew();
         List<Task> tasks = new();
         foreach (var ii in Enumerable.Range(0, 10))
         {
