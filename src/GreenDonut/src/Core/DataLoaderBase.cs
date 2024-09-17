@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Immutable;
 using GreenDonut.Helpers;
 
@@ -290,7 +291,10 @@ public abstract partial class DataLoaderBase<TKey, TValue>
 
     private void EnsureBatchExecuted(Batch<TKey>? batch)
     {
-        batch?.EnsureScheduled(_batchScheduler, () => ExecuteBatch(batch));
+        if(batch?.NeedsScheduling() ?? false)
+        {
+            _batchScheduler.Schedule(() => ExecuteBatch(batch));
+        }
     }
 
     private async ValueTask ExecuteBatch(Batch<TKey> batch)
@@ -387,12 +391,13 @@ public abstract partial class DataLoaderBase<TKey, TValue>
                 (@this: this, allowCachePropagation)) ?? CreatePromiseFromBatch(cacheKey, allowCachePropagation);
 
     }
-    private Promise<TValue?> CreatePromiseFromBatch(PromiseCacheKey cacheKey, bool allowCachePropagationLocal)
+
+    private Promise<TValue?> CreatePromiseFromBatch(PromiseCacheKey cacheKey, bool allowCachePropagation)
     {
         var currentBranch = _currentBatch ?? CreateNewBatch(null);
         do
         {
-            if(currentBranch.TryGetOrCreatePromise(cacheKey, out Promise<TValue?>? promise))
+            if(currentBranch.TryGetOrCreatePromise(cacheKey, allowCachePropagation, out Promise<TValue?>? promise))
             {
                 return promise;
             }

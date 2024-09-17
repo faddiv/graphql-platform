@@ -10,4 +10,8 @@ var result = await v.UncachedLoad();
 var result2 = await v.CachedLoad();
 */
 
-BenchmarkRunner.Run([typeof(MultiThreadPerformanceBenchmarks)]);
+BenchmarkRunner.Run(
+    [
+        typeof(SingleThreadPerformanceBenchmarks),
+        typeof(MultiThreadPerformanceBenchmarks)
+    ]);
