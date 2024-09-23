@@ -20,7 +20,6 @@ public class BatchDataLoaderTests_Own(ITestOutputHelper testOutputHelper)
             new DataLoaderOptions
             {
                 Cache = cacheOwner.Cache,
-                CancellationToken = cacheOwner.CancellationToken,
             });
 
         // act

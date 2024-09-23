@@ -13,7 +13,6 @@ public class CacheDataLoaderTests
             new DataLoaderOptions
             {
                 Cache = cacheOwner.Cache,
-                CancellationToken = cacheOwner.CancellationToken,
             });
 
         // act

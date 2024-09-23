@@ -64,7 +64,7 @@ public class BatchDataLoaderTests
 
         var dataLoader = new CustomBatchDataLoader(
             new InstantDispatcher(),
-            new DataLoaderOptions { CancellationToken = cts.Token });
+            new DataLoaderOptions());
 
         // act
         await dataLoader.LoadAsync(["1abc", "0abc"], cts.Token);
@@ -82,8 +82,7 @@ public class BatchDataLoaderTests
             new AutoBatchScheduler(),
             new DataLoaderOptions
             {
-                Cache = cacheOwner.Cache,
-                CancellationToken = cacheOwner.CancellationToken,
+                Cache = cacheOwner.Cache
             });
 
         // act

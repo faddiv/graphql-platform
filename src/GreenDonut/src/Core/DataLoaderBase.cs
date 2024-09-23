@@ -10,7 +10,6 @@ public abstract partial class DataLoaderBase<TKey, TValue>
     where TKey : notnull
 {
     private readonly IDataLoaderDiagnosticEvents _diagnosticEvents;
-    private readonly CancellationToken _ct;
     private readonly IBatchScheduler _batchScheduler;
     private readonly int _maxBatchSize;
     private readonly Lock _batchExchangeLock = new();
@@ -40,7 +39,6 @@ public abstract partial class DataLoaderBase<TKey, TValue>
         options ??= new DataLoaderOptions();
         _diagnosticEvents = options.DiagnosticEvents ?? Default;
         Cache = options.Cache;
-        _ct = options.CancellationToken;
         _batchScheduler = batchScheduler;
         _maxBatchSize = options.MaxBatchSize;
         CacheKeyType = GetCacheKeyType(GetType());
@@ -89,7 +87,6 @@ public abstract partial class DataLoaderBase<TKey, TValue>
             MaxBatchSize = _maxBatchSize,
             Cache = Cache,
             DiagnosticEvents = _diagnosticEvents,
-            CancellationToken = _ct,
         };
 
     /// <inheritdoc />
@@ -111,7 +108,7 @@ public abstract partial class DataLoaderBase<TKey, TValue>
 
         PromiseCacheKey cacheKey = new(cacheKeyType, key);
 
-        var promise = CreateAndCachePromise(cacheKey, allowCachePropagation);
+        var promise = CreateAndCachePromise(cacheKey, allowCachePropagation, cancellationToken);
 
         if (!promise.TryInitialize())
         {
@@ -120,7 +117,7 @@ public abstract partial class DataLoaderBase<TKey, TValue>
             return promise.Task;
         }
 
-        EnsureBatchExecuted(_currentBatch);
+        EnsureBatchExecuted(_currentBatch, cancellationToken);
         return promise.Task;
     }
 
@@ -153,15 +150,16 @@ public abstract partial class DataLoaderBase<TKey, TValue>
             cancellationToken.ThrowIfCancellationRequested();
 
             PromiseCacheKey cacheKey = new(cacheKeyType, key);
-            var promise = CreateAndCachePromise(cacheKey, allowCachePropagation);
+            var promise = CreateAndCachePromise(cacheKey, allowCachePropagation, cancellationToken);
             if (!promise.TryInitialize())
             {
                 _diagnosticEvents.ResolvedTaskFromCache(this, cacheKey, promise.Task);
             }
+
             tasks[index++] = promise.Task;
         }
 
-        EnsureBatchExecuted(_currentBatch);
+        EnsureBatchExecuted(_currentBatch, cancellationToken);
 
         return WhenAll(tasks);
 
@@ -282,15 +280,15 @@ public abstract partial class DataLoaderBase<TKey, TValue>
         }
     }
 
-    private void EnsureBatchExecuted(Batch<TKey>? batch)
+    private void EnsureBatchExecuted(Batch<TKey>? batch, CancellationToken cancellationToken)
     {
         if(batch?.NeedsScheduling() ?? false)
         {
-            _batchScheduler.Schedule(() => ExecuteBatch(batch));
+            _batchScheduler.Schedule(() => ExecuteBatch(batch, cancellationToken));
         }
     }
 
-    private async ValueTask ExecuteBatch(Batch<TKey> batch)
+    private async ValueTask ExecuteBatch(Batch<TKey> batch, CancellationToken cancellationToken)
     {
         //Remove the batch only if it is still the same.
         Interlocked.CompareExchange(ref _currentBatch, null, batch);
@@ -307,8 +305,9 @@ public abstract partial class DataLoaderBase<TKey, TValue>
 
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var context = new DataLoaderFetchContext<TValue>(ContextData);
-                await FetchAsync(keys, buffer, context, _ct).ConfigureAwait(false);
+                await FetchAsync(keys, buffer, context, cancellationToken).ConfigureAwait(false);
                 BatchOperationSucceeded(batch, keys, buffer);
                 _diagnosticEvents.BatchResults<TKey, TValue>(keys, buffer);
             }
@@ -376,25 +375,37 @@ public abstract partial class DataLoaderBase<TKey, TValue>
         }
     }
 
-    private Promise<TValue?> CreateAndCachePromise(PromiseCacheKey cacheKey, bool allowCachePropagation)
+    private Promise<TValue?> CreateAndCachePromise(
+        PromiseCacheKey cacheKey,
+        bool allowCachePropagation,
+        CancellationToken cancellationToken)
     {
         return Cache?.GetOrAddPromise(
                 cacheKey,
-                (key, state) => state.@this.CreatePromiseFromBatch(key, state.allowCachePropagation),
-                (@this: this, allowCachePropagation)) ?? CreatePromiseFromBatch(cacheKey, allowCachePropagation);
+                (key, state) => state.@this.CreatePromiseFromBatch(key, state.allowCachePropagation, state.cancellationToken),
+                (@this: this, allowCachePropagation, cancellationToken)) ??
+            CreatePromiseFromBatch(cacheKey, allowCachePropagation, cancellationToken);
 
     }
 
-    private Promise<TValue?> CreatePromiseFromBatch(PromiseCacheKey cacheKey, bool allowCachePropagation)
+    private Promise<TValue?> CreatePromiseFromBatch(
+        PromiseCacheKey cacheKey,
+        bool allowCachePropagation,
+        CancellationToken cancellationToken)
     {
         var currentBranch = _currentBatch ?? CreateNewBatch(null);
         do
         {
-            if(currentBranch.TryGetOrCreatePromise(cacheKey, allowCachePropagation, out Promise<TValue?>? promise))
+            if(currentBranch.TryGetOrCreatePromise(
+                cacheKey,
+                allowCachePropagation,
+                cancellationToken,
+                out Promise<TValue?>? promise))
             {
                 return promise;
             }
-            EnsureBatchExecuted(currentBranch);
+
+            EnsureBatchExecuted(currentBranch, cancellationToken);
             currentBranch = CreateNewBatch(currentBranch);
         } while (true);
     }

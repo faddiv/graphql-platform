@@ -30,6 +30,7 @@ internal class Batch<TKey> where TKey : notnull
     public bool TryGetOrCreatePromise<TValue>(
         PromiseCacheKey cacheKey,
         bool allowCachePropagation,
+        CancellationToken cancellationToken,
         [NotNullWhen(true)] out Promise<TValue?>? promise)
     {
         if (!CanAdd())
@@ -54,6 +55,10 @@ internal class Batch<TKey> where TKey : notnull
                 return true;
             }
             promise = Promise<TValue?>.Create(!allowCachePropagation);
+            cancellationToken.Register(static state =>
+            {
+                ((Promise<TValue>)state!).TryCancel();
+            }, promise);
             _items.Add(key, promise);
             return true;
         }

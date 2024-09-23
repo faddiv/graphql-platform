@@ -65,7 +65,6 @@ public class DataLoaderExtensionsTests
             new DataLoaderOptions
             {
                 Cache = cacheOwner.Cache,
-                CancellationToken = cacheOwner.CancellationToken,
             });
 
         const string key = "Foo";
@@ -93,7 +92,6 @@ public class DataLoaderExtensionsTests
             new DataLoaderOptions
             {
                 Cache = cacheOwner.Cache,
-                CancellationToken = cacheOwner.CancellationToken,
             });
 
         const string key = "Foo";
@@ -137,7 +135,6 @@ public class DataLoaderExtensionsTests
             new DataLoaderOptions
             {
                 Cache = cacheOwner.Cache,
-                CancellationToken = cacheOwner.CancellationToken,
             });
         object value = "Bar";
 

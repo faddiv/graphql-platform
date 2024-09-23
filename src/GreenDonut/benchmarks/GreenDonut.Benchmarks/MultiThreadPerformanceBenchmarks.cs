@@ -22,7 +22,6 @@ public class MultiThreadPerformanceBenchmarks
         _dataLoaderCached  = new CustomBatchDataLoader(_scheduler, new DataLoaderOptions
         {
             Cache = _promiseCache.Cache,
-            CancellationToken = _promiseCache.CancellationToken,
         });
     }
 

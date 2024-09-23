@@ -22,7 +22,6 @@ public class SingleThreadPerformanceBenchmarks
         _dataLoaderCached  = new CustomBatchDataLoader(_scheduler, new DataLoaderOptions
         {
             Cache = _promiseCache.Cache,
-            CancellationToken = _promiseCache.CancellationToken,
         });
     }
 
@@ -36,5 +35,14 @@ public class SingleThreadPerformanceBenchmarks
     public Task<string?> CachedLoad()
     {
         return _dataLoaderCached.LoadAsync("abc2");
+    }
+
+
+    [Benchmark]
+    public Task<string?> CachedLoadWithReset()
+    {
+        var cachedLoadWithReset = _dataLoaderCached.LoadAsync("abc2");
+        _promiseCache.Cache.Clear();
+        return cachedLoadWithReset;
     }
 }
