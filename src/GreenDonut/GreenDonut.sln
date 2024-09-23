@@ -17,6 +17,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GreenDonut", "src\Core\Gree
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GreenDonut.Tests", "test\Core.Tests\GreenDonut.Tests.csproj", "{1F96BB47-B053-4E9C-865A-5B6FB613CB0D}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "benchmarks", "benchmarks", "{A91358D7-32BF-4ED8-9B17-FF92650813EA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GreenDonut.Benchmarks", "benchmarks\GreenDonut.Benchmarks\GreenDonut.Benchmarks.csproj", "{AA4E2FF8-FA16-4D64-B7A9-FD84A9387287}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -31,6 +35,10 @@ Global
 		{1F96BB47-B053-4E9C-865A-5B6FB613CB0D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1F96BB47-B053-4E9C-865A-5B6FB613CB0D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1F96BB47-B053-4E9C-865A-5B6FB613CB0D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AA4E2FF8-FA16-4D64-B7A9-FD84A9387287}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AA4E2FF8-FA16-4D64-B7A9-FD84A9387287}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AA4E2FF8-FA16-4D64-B7A9-FD84A9387287}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AA4E2FF8-FA16-4D64-B7A9-FD84A9387287}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -38,6 +46,7 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{FD764A95-F950-40F3-9577-E3168BBC330D} = {251185F7-7E3B-4BB3-B500-56C90564EE8C}
 		{1F96BB47-B053-4E9C-865A-5B6FB613CB0D} = {A829F8F0-4468-405C-8A26-3E5921F7324A}
+		{AA4E2FF8-FA16-4D64-B7A9-FD84A9387287} = {A91358D7-32BF-4ED8-9B17-FF92650813EA}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CC1769AF-BDF5-4EF2-AED8-1719C180F131}
