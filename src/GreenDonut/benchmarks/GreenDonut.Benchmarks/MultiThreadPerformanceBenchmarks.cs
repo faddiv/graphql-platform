@@ -3,7 +3,6 @@ using GreenDonut.Benchmarks.TestInfrastructure;
 
 namespace GreenDonut.Benchmarks;
 
-[MarkdownExporter]
 [MemoryDiagnoser]
 public class MultiThreadPerformanceBenchmarks
 {
