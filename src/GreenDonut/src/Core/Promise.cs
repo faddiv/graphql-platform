@@ -182,24 +182,19 @@ public class Promise<TValue> : IPromise
     public static implicit operator Promise<TValue>(TaskCompletionSource<TValue> promise)
         => new(promise);
 
-    public bool TryInitialize<TKey, TState>(
-        TKey key,
-        Action<TKey, TState, Promise<TValue?>> initialize,
-        TState state) where TKey : notnull
+    public bool TryInitialize()
     {
         if (_initialized)
         {
             return false;
         }
-        // TODO Don't need to wait for lock release. If the lock aquired, then doesn't need.
+        // TODO Don't need to wait for lock release. If the lock acquired, then doesn't need.
         lock (Task)
         {
             if (_initialized)
             {
                 return false;
             }
-
-            initialize(key, state, this);
 
             _initialized = true;
         }

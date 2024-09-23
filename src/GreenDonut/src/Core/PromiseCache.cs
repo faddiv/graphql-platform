@@ -9,13 +9,13 @@ namespace GreenDonut;
 /// </summary>
 public sealed class PromiseCache : IPromiseCache
 {
-    private const int _minimumSize = 10;
+    private const int MinimumSize = 10;
     private readonly ConcurrentDictionary<PromiseCacheKey, Entry> _promises = new();
     private readonly ConcurrentDictionary<Type, List<Subscription>> _subscriptions = new();
     private readonly ConcurrentStack<IPromise> _promises2 = new();
     private readonly int _size;
     private readonly int _order;
-    private int _usage = 0;
+    private int _usage;
 
     /// <summary>
     /// Creates a new instance of <see cref="PromiseCache"/>.
@@ -25,7 +25,7 @@ public sealed class PromiseCache : IPromiseCache
     /// </param>
     public PromiseCache(int size)
     {
-        _size = size < _minimumSize ? _minimumSize : size;
+        _size = size < MinimumSize ? MinimumSize : size;
         _order = Convert.ToInt32(size * 0.9);
     }
 
@@ -36,7 +36,10 @@ public sealed class PromiseCache : IPromiseCache
     public int Usage => _usage;
 
     /// <inheritdoc />
-    public Promise<T> GetOrAddPromise<T, TState>(PromiseCacheKey key, Func<PromiseCacheKey, TState, Promise<T>> createPromise, TState state)
+    public Promise<T> GetOrAddPromise<T, TState>(
+        PromiseCacheKey key,
+        Func<PromiseCacheKey, TState, Promise<T>> createPromise,
+        TState state)
     {
         if (key.Type is null)
         {
@@ -61,7 +64,7 @@ public sealed class PromiseCache : IPromiseCache
             throw new ArgumentNullException(nameof(key));
         }
 
-        if (promise?.Task is null)
+        if (promise.Task is null)
         {
             throw new ArgumentNullException(nameof(promise));
         }

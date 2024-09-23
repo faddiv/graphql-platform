@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Immutable;
 using GreenDonut.Helpers;
 
@@ -20,7 +19,7 @@ public abstract partial class DataLoaderBase<TKey, TValue>
 #if NET6_0_OR_GREATER
     private ImmutableDictionary<string, IDataLoader> _branches =
         ImmutableDictionary<string, IDataLoader>.Empty;
-    private Lock _branchesLock = new();
+    private readonly Lock _branchesLock = new();
 #endif
 
     /// <summary>
@@ -114,12 +113,7 @@ public abstract partial class DataLoaderBase<TKey, TValue>
 
         var promise = CreateAndCachePromise(cacheKey, allowCachePropagation);
 
-        if (!promise.TryInitialize(
-            key,
-            static (key, state, prom) =>
-            {
-            },
-            this))
+        if (!promise.TryInitialize())
         {
             _diagnosticEvents.ResolvedTaskFromCache(this, cacheKey, promise.Task);
 
@@ -160,10 +154,7 @@ public abstract partial class DataLoaderBase<TKey, TValue>
 
             PromiseCacheKey cacheKey = new(cacheKeyType, key);
             var promise = CreateAndCachePromise(cacheKey, allowCachePropagation);
-            if (!promise.TryInitialize(
-                key,
-                static (key, state, prom) => { },
-                (object?)null))
+            if (!promise.TryInitialize())
             {
                 _diagnosticEvents.ResolvedTaskFromCache(this, cacheKey, promise.Task);
             }
@@ -237,20 +228,22 @@ public abstract partial class DataLoaderBase<TKey, TValue>
                 "Branching is not allowed for this DataLoader.");
         }
 
-        if (!_branches.TryGetValue(key, out var branch))
+        if (_branches.TryGetValue(key, out var branch))
         {
-            lock (_branchesLock)
-            {
-                if (!_branches.TryGetValue(key, out branch))
-                {
-                    var newBranch = createBranch(key, this, state);
-                    _branches = _branches.Add(key, newBranch);
-                    return newBranch;
-                }
-            }
+            return branch;
         }
 
-        return branch;
+        lock (_branchesLock)
+        {
+            if (_branches.TryGetValue(key, out branch))
+            {
+                return branch;
+            }
+
+            var newBranch = createBranch(key, this, state);
+            _branches = _branches.Add(key, newBranch);
+            return newBranch;
+        }
     }
 #endif
 
