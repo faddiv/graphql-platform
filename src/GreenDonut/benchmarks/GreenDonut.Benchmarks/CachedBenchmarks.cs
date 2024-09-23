@@ -3,11 +3,11 @@ using GreenDonut.Benchmarks.TestInfrastructure;
 
 namespace GreenDonut.Benchmarks;
 
+[MarkdownExporter]
 [MemoryDiagnoser]
-public class SingleThreadPerformanceBenchmarks
+public class CachedBenchmarks
 {
     private IBatchScheduler _scheduler = null!;
-    private CustomBatchDataLoader _dataLoaderUncached = null!;
     private CustomBatchDataLoader _dataLoaderCached = null!;
     private PromiseCacheOwner _promiseCache = null!;
 
@@ -15,9 +15,6 @@ public class SingleThreadPerformanceBenchmarks
     public void Setup()
     {
         _scheduler = new AutoBatchScheduler();
-        _dataLoaderUncached = new CustomBatchDataLoader(
-            _scheduler,
-            new DataLoaderOptions());
         _promiseCache = new PromiseCacheOwner();
         _dataLoaderCached = new CustomBatchDataLoader(_scheduler, new DataLoaderOptions
         {
@@ -26,14 +23,14 @@ public class SingleThreadPerformanceBenchmarks
     }
 
     [Benchmark]
-    public Task<string?> UncachedLoad()
-    {
-        return _dataLoaderUncached.LoadAsync("abc1");
-    }
-
-    [Benchmark]
-    public Task<string?> CachedLoad()
+    public Task<string?> CachedLoadWithReset()
     {
         return _dataLoaderCached.LoadAsync("abc2");
+    }
+
+    [IterationCleanup]
+    public void IterationCleanup()
+    {
+        _promiseCache.Cache.Clear();
     }
 }

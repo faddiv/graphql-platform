@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "GreenDonut.Benchmarks": {
+      "commandName": "Project",
+      "commandLineArgs": ""
+    }
+  }
+}
