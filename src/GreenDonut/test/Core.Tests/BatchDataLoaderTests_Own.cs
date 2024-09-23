@@ -19,8 +19,7 @@ public class BatchDataLoaderTests_Own(ITestOutputHelper testOutputHelper)
             batchScheduler,
             new DataLoaderOptions
             {
-                Cache = cacheOwner.Cache,
-                CancellationToken = cacheOwner.CancellationToken,
+                Cache = cacheOwner.Cache
             });
 
         // act
