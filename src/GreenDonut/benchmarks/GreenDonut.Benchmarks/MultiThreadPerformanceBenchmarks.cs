@@ -6,10 +6,13 @@ namespace GreenDonut.Benchmarks;
 [MemoryDiagnoser]
 public class MultiThreadPerformanceBenchmarks
 {
+    private const int _keyCount = 50;
     private ManualBatchScheduler _scheduler = null!;
     private CustomBatchDataLoader _dataLoaderUncached = null!;
     private CustomBatchDataLoader _dataLoaderCached = null!;
     private PromiseCacheOwner _promiseCache = null!;
+    private string[] _keys = null!;
+    Task<string?>[] _tasks = null!;
 
     [GlobalSetup]
     public void Setup()
@@ -23,35 +26,34 @@ public class MultiThreadPerformanceBenchmarks
         {
             Cache = _promiseCache.Cache,
         });
+
+        _keys = Enumerable.Range(0, _keyCount).Select(i => i.ToString()).ToArray();
+        _tasks = new Task<string?>[_keyCount];
     }
 
     [Benchmark]
     public async Task<string?> UncachedLoad()
     {
-        var length = 50;
-        var tasks = new Task<string?>[length];
-        for (int i = 0; i < length; i++)
+        for (int i = 0; i < _keyCount; i++)
         {
-            tasks[i] = _dataLoaderUncached.LoadAsync(i.ToString());
+            _tasks[i] = _dataLoaderUncached.LoadAsync(_keys[i]);
         }
 
         await _scheduler.DispatchAsync();
-        await Task.WhenAll(tasks);
-        return tasks[0].Result;
+        await Task.WhenAll(_tasks);
+        return _tasks[0].Result;
     }
 
     [Benchmark]
     public async Task<string?> CachedLoad()
     {
-        var length = 50;
-        var tasks = new Task<string?>[length];
-        for (int i = 0; i < length; i++)
+        for (int i = 0; i < _keyCount; i++)
         {
-            tasks[i] = _dataLoaderCached.LoadAsync(i.ToString());
+            _tasks[i] = _dataLoaderCached.LoadAsync(_keys[i]);
         }
 
         await _scheduler.DispatchAsync();
-        await Task.WhenAll(tasks);
-        return tasks[0].Result;
+        await Task.WhenAll(_tasks);
+        return _tasks[0].Result;
     }
 }
