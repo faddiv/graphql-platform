@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 
 namespace GreenDonut.Benchmarks.TestInfrastructure;
 
@@ -16,13 +16,13 @@ public class ManualBatchScheduler : IBatchScheduler
 
     public Task DispatchAsync()
     {
-        var tasks = new List<Task>();
+        List<Task>? tasks = null;
         while (_queue.TryDequeue(out var dispatch))
         {
-
-            tasks.Add(Task.Run(async () => await dispatch()));
+            tasks ??= [];
+            tasks.Add(Task.Run(dispatch));
         }
-        return tasks.Count > 0
+        return tasks is not null
             ? Task.WhenAll(tasks)
             : Task.CompletedTask;
     }

@@ -2,7 +2,7 @@
 <html lang='en'>
 <head>
 <meta charset='utf-8' />
-<title>GreenDonut.Benchmarks.MultiThreadPerformanceBenchmarks-20240923-213634</title>
+<title>GreenDonut.Benchmarks.MultiThreadBenchmarks-20240925-172503</title>
 
 <style type="text/css">
 	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
@@ -22,10 +22,10 @@ AMD Ryzen 5 2600, 1 CPU, 12 logical and 6 physical cores
 <pre><code></code></pre>
 
 <table>
-<thead><tr><th>Method</th><th>Mean</th><th>Error</th><th>StdDev</th><th>Gen0</th><th>Allocated</th>
+<thead><tr><th>Method         </th><th>Mean</th><th>Error</th><th>StdDev</th><th>Gen0</th><th>Gen1</th><th>Allocated</th>
 </tr>
-</thead><tbody><tr><td>UncachedLoad</td><td>25.802 &mu;s</td><td>0.5110 &mu;s</td><td>0.4780 &mu;s</td><td>4.0894</td><td>16.34 KB</td>
-</tr><tr><td>CachedLoad</td><td>6.443 &mu;s</td><td>0.0819 &mu;s</td><td>0.0684 &mu;s</td><td>0.3510</td><td>1.45 KB</td>
+</thead><tbody><tr><td>MultiThreadCachedLoad</td><td>6.187 &mu;s</td><td>0.0259 &mu;s</td><td>0.0243 &mu;s</td><td>0.2365</td><td>-</td><td>1008 B</td>
+</tr><tr><td>MultiThreadFirstHit</td><td>190.706 &mu;s</td><td>1.3017 &mu;s</td><td>1.1540 &mu;s</td><td>17.5781</td><td>0.4883</td><td>70822 B</td>
 </tr></tbody></table>
 </body>
 </html>

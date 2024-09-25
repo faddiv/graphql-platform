@@ -2,7 +2,7 @@
 <html lang='en'>
 <head>
 <meta charset='utf-8' />
-<title>GreenDonut.Benchmarks.CachedBenchmarks-20240923-171741</title>
+<title>GreenDonut.Benchmarks.SingleThreadUncachedBenchmarks-20240925-172415</title>
 
 <style type="text/css">
 	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
@@ -17,15 +17,14 @@ BenchmarkDotNet v0.14.0, Windows 11 (10.0.22631.4169/23H2/2023Update/SunValley3)
 AMD Ryzen 5 2600, 1 CPU, 12 logical and 6 physical cores
 .NET SDK 8.0.400
   [Host]     : .NET 8.0.8 (8.0.824.36612), X64 RyuJIT AVX2
-  Job-LLRFQJ : .NET 8.0.8 (8.0.824.36612), X64 RyuJIT AVX2
+  DefaultJob : .NET 8.0.8 (8.0.824.36612), X64 RyuJIT AVX2
 </code></pre>
-<pre><code>InvocationCount=1  UnrollFactor=1  
-</code></pre>
+<pre><code></code></pre>
 
 <table>
-<thead><tr><th>Method       </th><th>Mean</th><th>Error</th><th>StdDev</th><th>Allocated</th>
+<thead><tr><th>Method</th><th>Mean</th><th>Error</th><th>StdDev</th><th>Gen0</th><th>Allocated</th>
 </tr>
-</thead><tbody><tr><td>CachedLoadWithReset</td><td>94.04 &mu;s</td><td>8.339 &mu;s</td><td>24.46 &mu;s</td><td>2.99 KB</td>
+</thead><tbody><tr><td>Load</td><td>5.956 &mu;s</td><td>0.0868 &mu;s</td><td>0.0770 &mu;s</td><td>0.3052</td><td>1.25 KB</td>
 </tr></tbody></table>
 </body>
 </html>

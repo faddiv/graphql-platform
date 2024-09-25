@@ -2,7 +2,7 @@
 <html lang='en'>
 <head>
 <meta charset='utf-8' />
-<title>GreenDonut.Benchmarks.MultiThreadPerformanceBenchmarks-20240923-171703</title>
+<title>GreenDonut.Benchmarks.SingleThreadCachedBenchmarks-20240925-172428</title>
 
 <style type="text/css">
 	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
@@ -22,10 +22,10 @@ AMD Ryzen 5 2600, 1 CPU, 12 logical and 6 physical cores
 <pre><code></code></pre>
 
 <table>
-<thead><tr><th>Method</th><th>Mean</th><th>Error</th><th>StdDev</th><th>Gen0</th><th>Allocated</th>
+<thead><tr><th>Method             </th><th>Mean </th><th>Error</th><th>StdDev</th><th>Gen0</th><th>Allocated</th>
 </tr>
-</thead><tbody><tr><td>UncachedLoad</td><td>24.03 &mu;s</td><td>0.227 &mu;s</td><td>0.213 &mu;s</td><td>4.0283</td><td>16.31 KB</td>
-</tr><tr><td>CachedLoad</td><td>41.16 &mu;s</td><td>0.238 &mu;s</td><td>0.223 &mu;s</td><td>6.7139</td><td>27.23 KB</td>
+</thead><tbody><tr><td>SingleThreadCached</td><td>102.2 ns</td><td>0.26 ns</td><td>0.23 ns</td><td>-</td><td>-</td>
+</tr><tr><td>SingleThreadFirstHitCache</td><td>10,117.8 ns</td><td>110.01 ns</td><td>102.90 ns</td><td>0.6104</td><td>2640 B</td>
 </tr></tbody></table>
 </body>
 </html>

@@ -12,7 +12,7 @@ var result2 = await v.CachedLoad();
 
 BenchmarkRunner.Run(
     [
-        typeof(SingleThreadPerformanceBenchmarks),
-        typeof(MultiThreadPerformanceBenchmarks),
-        typeof(CachedBenchmarks)
+        typeof(SingleThreadUncachedBenchmarks),
+        typeof(SingleThreadCachedBenchmarks),
+        typeof(MultiThreadBenchmarks)
     ], args: args);

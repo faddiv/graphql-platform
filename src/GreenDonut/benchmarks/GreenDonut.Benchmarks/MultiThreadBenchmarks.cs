@@ -4,11 +4,10 @@ using GreenDonut.Benchmarks.TestInfrastructure;
 namespace GreenDonut.Benchmarks;
 
 [MemoryDiagnoser]
-public class MultiThreadPerformanceBenchmarks
+public class MultiThreadBenchmarks
 {
     private const int _keyCount = 50;
     private ManualBatchScheduler _scheduler = null!;
-    private CustomBatchDataLoader _dataLoaderUncached = null!;
     private CustomBatchDataLoader _dataLoaderCached = null!;
     private PromiseCacheOwner _promiseCache = null!;
     private string[] _keys = null!;
@@ -18,11 +17,8 @@ public class MultiThreadPerformanceBenchmarks
     public void Setup()
     {
         _scheduler = new ManualBatchScheduler();
-        _dataLoaderUncached = new CustomBatchDataLoader(
-            _scheduler,
-            new DataLoaderOptions());
         _promiseCache = new PromiseCacheOwner();
-        _dataLoaderCached  = new CustomBatchDataLoader(_scheduler, new DataLoaderOptions
+        _dataLoaderCached = new CustomBatchDataLoader(_scheduler, new DataLoaderOptions
         {
             Cache = _promiseCache.Cache,
         });
@@ -32,11 +28,11 @@ public class MultiThreadPerformanceBenchmarks
     }
 
     [Benchmark]
-    public async Task<string?> UncachedLoad()
+    public async Task<string?> MultiThreadCachedLoad()
     {
         for (int i = 0; i < _keyCount; i++)
         {
-            _tasks[i] = _dataLoaderUncached.LoadAsync(_keys[i]);
+            _tasks[i] = _dataLoaderCached.LoadAsync(_keys[i]);
         }
 
         await _scheduler.DispatchAsync();
@@ -45,11 +41,16 @@ public class MultiThreadPerformanceBenchmarks
     }
 
     [Benchmark]
-    public async Task<string?> CachedLoad()
+    public async Task<string?> MultiThreadFirstHit()
     {
+        using var promiseCache = new PromiseCacheOwner();
+        var dataLoader = new CustomBatchDataLoader(_scheduler, new DataLoaderOptions
+        {
+            Cache = promiseCache.Cache,
+        });
         for (int i = 0; i < _keyCount; i++)
         {
-            _tasks[i] = _dataLoaderCached.LoadAsync(_keys[i]);
+            _tasks[i] = dataLoader.LoadAsync(_keys[i]);
         }
 
         await _scheduler.DispatchAsync();
