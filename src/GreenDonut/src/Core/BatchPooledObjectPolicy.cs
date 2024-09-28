@@ -4,6 +4,7 @@ namespace GreenDonut;
 
 internal class BatchPooledObjectPolicy<TKey>
         : PooledObjectPolicy<Batch<TKey>>
+     where TKey : notnull
 {
     public override Batch<TKey> Create() => new();
 

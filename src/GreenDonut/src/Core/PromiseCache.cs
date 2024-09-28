@@ -7,27 +7,20 @@ namespace GreenDonut;
 /// <summary>
 /// A memorization cache for <c>DataLoader</c>.
 /// </summary>
-public sealed class PromiseCache : IPromiseCache
+/// <remarks>
+/// Creates a new instance of <see cref="PromiseCache"/>.
+/// </remarks>
+/// <param name="size">
+/// The size of the cache. The minimum cache size is 10.
+/// </param>
+public sealed class PromiseCache(int size) : IPromiseCache
 {
-    private const int MinimumSize = 10;
+    private const int _minimumSize = 10;
     private readonly ConcurrentDictionary<PromiseCacheKey, Entry> _promises = new();
     private readonly ConcurrentDictionary<Type, List<Subscription>> _subscriptions = new();
     private readonly ConcurrentStack<IPromise> _promises2 = new();
-    private readonly int _size;
-    private readonly int _order;
+    private readonly int _size = Math.Max(size, _minimumSize);
     private int _usage;
-
-    /// <summary>
-    /// Creates a new instance of <see cref="PromiseCache"/>.
-    /// </summary>
-    /// <param name="size">
-    /// The size of the cache. The minimum cache size is 10.
-    /// </param>
-    public PromiseCache(int size)
-    {
-        _size = size < MinimumSize ? MinimumSize : size;
-        _order = Convert.ToInt32(size * 0.9);
-    }
 
     /// <inheritdoc />
     public int Size => _size;
@@ -178,7 +171,7 @@ public sealed class PromiseCache : IPromiseCache
         var type = typeof(T);
         var p1 = _promises2.ToArray();
         var p2 = _promises.ToArray();
-        var subscriptions =  _subscriptions.GetOrAdd(type, _ => []);
+        var subscriptions = _subscriptions.GetOrAdd(type, _ => []);
         var subscription = new Subscription<T>(this, subscriptions, next, skipCacheKeyType);
 
         lock (subscriptions)
@@ -217,7 +210,7 @@ public sealed class PromiseCache : IPromiseCache
         TState state)
     {
         var usage = _usage;
-        if (usage > _order && usage >= _size)
+        if (usage >= _size)
         {
             var nonCachedEntry = new Entry(key, createPromise(key, state));
             return nonCachedEntry.EnsureInitialized<T>(this, false);

@@ -28,7 +28,7 @@ internal class Batch<TKey> where TKey : notnull
     public IReadOnlyList<TKey> Keys => _status == BatchStatus.Closed ? [.. _items.Keys] : [];
 
     public bool TryGetOrCreatePromise<TValue>(
-        PromiseCacheKey cacheKey,
+        TKey key,
         bool allowCachePropagation,
         CancellationToken cancellationToken,
         [NotNullWhen(true)] out Promise<TValue?>? promise)
@@ -47,18 +47,15 @@ internal class Batch<TKey> where TKey : notnull
                 return false;
             }
 
-            var key = GetKey(cacheKey);
-
             if (_items.TryGetValue(key, out var result))
             {
                 promise = (Promise<TValue?>)result;
                 return true;
             }
             promise = Promise<TValue?>.Create(!allowCachePropagation);
-            cancellationToken.Register(static state =>
-            {
-                ((Promise<TValue>)state!).TryCancel();
-            }, promise);
+            cancellationToken.Register(
+                static state => ((Promise<TValue>)state!).TryCancel(),
+                promise);
             _items.Add(key, promise);
             return true;
         }
