@@ -39,10 +39,7 @@ public sealed class PromiseCache(int size) : IPromiseCache
             throw new ArgumentNullException(nameof(key));
         }
 
-        if (createPromise is null)
-        {
-            throw new ArgumentNullException(nameof(createPromise));
-        }
+        ArgumentNullException.ThrowIfNull(createPromise);
 
         var result = GetOrAddEntryInternal(key, createPromise, state);
 
@@ -128,7 +125,7 @@ public sealed class PromiseCache(int size) : IPromiseCache
     public void PublishMany<T>(ReadOnlySpan<T> values)
     {
         var buffer = ArrayPool<IPromise>.Shared.Rent(values.Length);
-        var span = buffer.AsSpan().Slice(0, values.Length);
+        var span = buffer.AsSpan()[..values.Length];
 
         for (var i = 0; i < values.Length; i++)
         {

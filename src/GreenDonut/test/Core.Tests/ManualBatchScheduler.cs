@@ -6,11 +6,11 @@ public class ManualBatchScheduler : IBatchScheduler
 {
     private readonly ConcurrentQueue<Func<ValueTask>> _queue = new();
 
-    public void Dispatch()
+    public void DispatchSynchronously()
     {
         while (_queue.TryDequeue(out var dispatch))
         {
-            Task.Run(async () => await dispatch());
+            dispatch();
         }
     }
 

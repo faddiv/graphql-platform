@@ -256,8 +256,13 @@ public abstract partial class DataLoaderBase<TKey, TValue>
     {
         if(batch?.NeedsScheduling() ?? false)
         {
-            _batchScheduler.Schedule(() => ExecuteBatch(batch, cancellationToken));
+            ExecuteBatchInternal(batch, cancellationToken);
         }
+    }
+
+    private void ExecuteBatchInternal(Batch<TKey> batch, CancellationToken cancellationToken)
+    {
+        _batchScheduler.Schedule(() => ExecuteBatch(batch, cancellationToken));
     }
 
     private async ValueTask ExecuteBatch(Batch<TKey> batch, CancellationToken cancellationToken)
