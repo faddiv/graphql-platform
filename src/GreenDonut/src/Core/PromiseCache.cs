@@ -278,6 +278,7 @@ public sealed class PromiseCache(int size) : IPromiseCache
                     return (false, promise);
                 }
 
+                // TODO Do not call event in lock.
                 if (!promise.IsClone)
                 {
                     promise.OnComplete(NotifySubscribers, new CacheAndKey(cache, Key));

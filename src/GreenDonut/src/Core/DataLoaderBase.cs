@@ -354,9 +354,9 @@ public abstract partial class DataLoaderBase<TKey, TValue>
         var cacheKey = new PromiseCacheKey(CacheKeyType, key);
         var promise = Cache?.GetOrAddPromise(
                 cacheKey,
-                (_, state) => state.@this.CreatePromiseFromBatch(state.key, state.AllowCachePropagation, state.cancellationToken),
-                (@this: this, key, AllowCachePropagation, cancellationToken)) ??
-            CreatePromiseFromBatch(key, AllowCachePropagation, cancellationToken);
+                static (_, state) => state.@this.CreatePromiseFromBatch(state.key, state.cancellationToken),
+                (@this: this, key, cancellationToken)) ??
+            CreatePromiseFromBatch(key, cancellationToken);
 
         if (promise.ResolvedTaskFromCache())
         {
@@ -368,7 +368,6 @@ public abstract partial class DataLoaderBase<TKey, TValue>
 
     private Promise<TValue?> CreatePromiseFromBatch(
         TKey key,
-        bool allowCachePropagation,
         CancellationToken cancellationToken)
     {
         var currentBranch = _currentBatch ?? CreateNewBatch(null);
@@ -376,7 +375,7 @@ public abstract partial class DataLoaderBase<TKey, TValue>
         {
             if (currentBranch.TryGetOrCreatePromise(
                 key,
-                allowCachePropagation,
+                AllowCachePropagation,
                 cancellationToken,
                 out Promise<TValue?>? promise))
             {
