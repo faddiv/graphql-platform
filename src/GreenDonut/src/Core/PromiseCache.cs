@@ -268,6 +268,7 @@ public sealed class PromiseCache(int size) : IPromiseCache
                 return (false, promise);
             }
 
+            bool notifySubscribers = false;
             lock (_lock)
             {
                 if (_initialized)
@@ -278,7 +279,7 @@ public sealed class PromiseCache(int size) : IPromiseCache
                 // TODO Do not call event in lock.
                 if (!promise.IsClone)
                 {
-                    promise.OnComplete(NotifySubscribers, new CacheAndKey(cache, Key));
+                    notifySubscribers = true;
                 }
 
                 if (incrementUsage)
@@ -287,6 +288,11 @@ public sealed class PromiseCache(int size) : IPromiseCache
                 }
 
                 _initialized = true;
+            }
+
+            if(notifySubscribers)
+            {
+                promise.OnComplete(NotifySubscribers, new CacheAndKey(cache, Key));
             }
 
             return (true, promise);
