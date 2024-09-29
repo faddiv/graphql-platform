@@ -182,22 +182,30 @@ public class Promise<TValue> : IPromise
     public static implicit operator Promise<TValue>(TaskCompletionSource<TValue> promise)
         => new(promise);
 
-    public bool TryInitialize()
+    public bool ResolvedTaskFromCache()
     {
         if (_initialized)
         {
-            return false;
+            return true;
         }
-        // TODO Don't need to wait for lock release. If the lock acquired, then doesn't need.
-        lock (Task)
+        var lockTaken = false;
+        Monitor.TryEnter(Task, ref lockTaken);
+        try
         {
             if (_initialized)
             {
-                return false;
+                return true;
             }
 
             _initialized = true;
+            return false;
         }
-        return true;
+        finally
+        {
+            if (lockTaken)
+            {
+                Monitor.Exit(Task);
+            }
+        }
     }
 }
