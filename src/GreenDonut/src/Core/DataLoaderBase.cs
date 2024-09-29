@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Collections.Immutable;
 using GreenDonut.Helpers;
 
@@ -278,20 +279,24 @@ public abstract partial class DataLoaderBase<TKey, TValue>
 
         using (_diagnosticEvents.ExecuteBatch(this, keys))
         {
-            var buffer = new Result<TValue?>[keys.Count];
+            var array = ArrayPool<Result<TValue?>>.Shared.Rent(keys.Count);
+            var buffer = array.AsMemory(0, keys.Count);
 
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var context = new DataLoaderFetchContext<TValue>(ContextData);
                 await FetchAsync(keys, buffer, context, cancellationToken).ConfigureAwait(false);
-                BatchOperationSucceeded(batch, keys, buffer);
-                _diagnosticEvents.BatchResults<TKey, TValue>(keys, buffer);
+                BatchOperationSucceeded(batch, keys, buffer.Span);
             }
             catch (Exception ex)
             {
                 errors = true;
                 BatchOperationFailed(batch, keys, ex);
+            }
+            finally
+            {
+                ArrayPool<Result<TValue?>>.Shared.Return(array, clearArray: true);
             }
         }
 
@@ -319,7 +324,7 @@ public abstract partial class DataLoaderBase<TKey, TValue>
         }
     }
 
-    private void BatchOperationSucceeded(Batch<TKey> batch, IReadOnlyList<TKey> keys, Result<TValue?>[] results)
+    private void BatchOperationSucceeded(Batch<TKey> batch, IReadOnlyList<TKey> keys, ReadOnlySpan<Result<TValue?>> results)
     {
         for (var i = 0; i < keys.Count; i++)
         {
@@ -337,6 +342,7 @@ public abstract partial class DataLoaderBase<TKey, TValue>
 
             SetSingleResult(batch.GetPromise<TValue?>(key), key, value);
         }
+        _diagnosticEvents.BatchResults(keys, results);
     }
 
     private void SetSingleResult(Promise<TValue?> promise, TKey key, Result<TValue?> result)
