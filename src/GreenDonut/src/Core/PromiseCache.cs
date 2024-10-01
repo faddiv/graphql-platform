@@ -276,7 +276,6 @@ public sealed class PromiseCache(int size) : IPromiseCache
                     return (false, promise);
                 }
 
-                // TODO Do not call event in lock.
                 if (!promise.IsClone)
                 {
                     notifySubscribers = true;
@@ -313,7 +312,7 @@ public sealed class PromiseCache(int size) : IPromiseCache
     {
         public void OnNext(PromiseCacheKey key, Promise<T> promise)
         {
-            if (promise.Task.IsCompletedSuccessfully() &&
+            if (promise.Task.IsCompletedSuccessfully &&
                 skipCacheKeyType?.Equals(key.Type, StringComparison.Ordinal) != true)
             {
                 next(owner, promise);
@@ -322,7 +321,7 @@ public sealed class PromiseCache(int size) : IPromiseCache
 
         public void OnNext(Promise<T> promise)
         {
-            if (promise.Task.IsCompletedSuccessfully())
+            if (promise.Task.IsCompletedSuccessfully)
             {
                 next(owner, promise);
             }

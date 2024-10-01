@@ -118,7 +118,7 @@ public class Promise<TValue> : IPromise
         Task.ContinueWith(
             (task, s) =>
             {
-                if (task.IsCompletedSuccessfully()
+                if (task.IsCompletedSuccessfully
                     && task.Result is not null)
                 {
                     callback(new Promise<TValue>(task.Result), (TState)s!);

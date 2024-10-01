@@ -16,11 +16,9 @@ public abstract partial class DataLoaderBase<TKey, TValue>
     private readonly Lock _batchExchangeLock = new();
     private Batch<TKey>? _currentBatch;
 
-#if NET6_0_OR_GREATER
     private ImmutableDictionary<string, IDataLoader> _branches =
         ImmutableDictionary<string, IDataLoader>.Empty;
     private readonly Lock _branchesLock = new();
-#endif
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DataLoaderBase{TKey, TValue}"/> class.
@@ -176,7 +174,6 @@ public abstract partial class DataLoaderBase<TKey, TValue>
         }
     }
 
-#if NET6_0_OR_GREATER
     /// <inheritdoc />
     public IDataLoader Branch<TState>(
         string key,
@@ -216,7 +213,6 @@ public abstract partial class DataLoaderBase<TKey, TValue>
             return newBranch;
         }
     }
-#endif
 
     /// <summary>
     /// A helper to create a cache key type for a DataLoader.
