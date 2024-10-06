@@ -10,5 +10,5 @@ AMD Ryzen 5 2600, 1 CPU, 12 logical and 6 physical cores
 ```
 | Method                    | Mean        | Error     | StdDev    | Gen0   | Allocated |
 |-------------------------- |------------:|----------:|----------:|-------:|----------:|
-| SingleThreadCached        |    102.4 ns |   0.60 ns |   0.56 ns |      - |         - |
-| SingleThreadFirstHitCache | 11,199.7 ns | 154.78 ns | 144.79 ns | 0.6104 |    2608 B |
+| SingleThreadCached        |    101.3 ns |   0.46 ns |   0.43 ns |      - |         - |
+| SingleThreadFirstHitCache | 11,328.1 ns | 226.52 ns | 222.47 ns | 0.5798 |    2480 B |

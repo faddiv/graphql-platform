@@ -10,4 +10,4 @@ AMD Ryzen 5 2600, 1 CPU, 12 logical and 6 physical cores
 ```
 | Method | Mean     | Error     | StdDev    | Gen0   | Allocated |
 |------- |---------:|----------:|----------:|-------:|----------:|
-| Load   | 6.344 μs | 0.0916 μs | 0.0857 μs | 0.2975 |   1.22 KB |
+| Load   | 6.225 μs | 0.1126 μs | 0.0998 μs | 0.2899 |   1.22 KB |

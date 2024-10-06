@@ -1,5 +1,3 @@
-using GreenDonut.Helpers;
-
 namespace GreenDonut;
 
 /// <summary>
@@ -115,16 +113,36 @@ public class Promise<TValue> : IPromise
                 "The promise is a clone and cannot be used to register a callback.");
         }
 
+        OnCompleteInternal(() =>
+        {
+            callback(new Promise<TValue>(Task), state);
+        });
+    }
+
+    internal void NotifySubscribersOnComplete(PromiseCache cache, PromiseCacheKey key)
+    {
+        OnCompleteInternal(() => cache.NotifySubscribers(key, this));
+    }
+
+    private void OnCompleteInternal(Action callback)
+    {
+        if (IsClone)
+        {
+            throw new InvalidCastException(
+                "The promise is a clone and cannot be used to register a callback.");
+        }
+
         Task.ContinueWith(
-            (task, s) =>
+            static(task, s) =>
             {
                 if (task.IsCompletedSuccessfully
                     && task.Result is not null)
                 {
-                    callback(new Promise<TValue>(task.Result), (TState)s!);
+                    var innerCallback = (Action)s!;
+                    innerCallback();
                 }
             },
-            state,
+            callback,
             TaskContinuationOptions.OnlyOnRanToCompletion);
     }
 

@@ -158,8 +158,7 @@ public sealed class PromiseCache(int size) : IPromiseCache
             }
         }
 
-        span.Clear();
-        ArrayPool<IPromise>.Shared.Return(buffer);
+        ArrayPool<IPromise>.Shared.Return(buffer, true);
     }
 
     /// <inheritdoc />
@@ -221,31 +220,33 @@ public sealed class PromiseCache(int size) : IPromiseCache
         return entry.EnsureInitialized<T>(this, true);
     }
 
-    private static void NotifySubscribers<T>(Promise<T> promise, CacheAndKey state)
-        => state.Cache.NotifySubscribers(state.Key, promise);
-
-    private void NotifySubscribers<T>(PromiseCacheKey key, Promise<T> promise)
+    internal void NotifySubscribers<T>(in PromiseCacheKey key, in Promise<T> promise)
     {
         if (!_subscriptions.TryGetValue(typeof(T), out var subscriptions))
         {
             return;
         }
 
-        promise = promise.Clone();
+        var clonedPromise = promise.Clone();
 
         List<Subscription> clone;
         lock (subscriptions)
         {
-            clone = subscriptions.ToList();
+            clone = [.. subscriptions];
         }
 
         foreach (var subscription in clone)
         {
             if (subscription is Subscription<T> casted)
             {
-                casted.OnNext(key, promise);
+                casted.OnNext(key, clonedPromise);
             }
         }
+    }
+
+    private void IncrementInternal(int value = 1)
+    {
+        Interlocked.Add(ref _usage, value);
     }
 
     private class Entry(PromiseCacheKey key, IPromise promise)
@@ -289,18 +290,13 @@ public sealed class PromiseCache(int size) : IPromiseCache
                 _initialized = true;
             }
 
-            if(notifySubscribers)
+            if (notifySubscribers)
             {
-                promise.OnComplete(NotifySubscribers, new CacheAndKey(cache, Key));
+                promise.NotifySubscribersOnComplete(cache, Key);
             }
 
             return (true, promise);
         }
-    }
-
-    private void IncrementInternal(int value = 1)
-    {
-        Interlocked.Add(ref _usage, value);
     }
 
     private sealed class Subscription<T>(
@@ -348,12 +344,5 @@ public sealed class PromiseCache(int size) : IPromiseCache
 
             _disposed = true;
         }
-    }
-
-    private readonly struct CacheAndKey(PromiseCache cache, PromiseCacheKey key)
-    {
-        public PromiseCache Cache { get; } = cache;
-
-        public PromiseCacheKey Key { get; } = key;
     }
 }
