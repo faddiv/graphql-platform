@@ -125,20 +125,25 @@ public sealed class PromiseCache(int size) : IPromiseCache
     public void PublishMany<T>(ReadOnlySpan<T> values)
     {
         var buffer = ArrayPool<IPromise>.Shared.Rent(values.Length);
-        var span = buffer.AsSpan()[..values.Length];
-
-        for (var i = 0; i < values.Length; i++)
+        try
         {
-            var promise = Promise<T>.Create(values[i], cloned: true);
-            span[i] = promise;
-        }
+            var span = buffer.AsSpan()[..values.Length];
 
-        _promises2.PushRange(buffer, 0, values.Length);
-        IncrementInternal(values.Length);
+            for (var i = 0; i < values.Length; i++)
+            {
+                var promise = Promise<T>.Create(values[i], cloned: true);
+                span[i] = promise;
+            }
 
-        // now we notify all subscribers that are interested in the current promise type.
-        if (_subscriptions.TryGetValue(typeof(T), out var subscriptions))
-        {
+            _promises2.PushRange(buffer, 0, values.Length);
+            IncrementInternal(values.Length);
+
+            // now we notify all subscribers that are interested in the current promise type.
+            if (!_subscriptions.TryGetValue(typeof(T), out var subscriptions))
+            {
+                return;
+            }
+
             List<Subscription> clone;
             lock (subscriptions)
             {
@@ -157,8 +162,10 @@ public sealed class PromiseCache(int size) : IPromiseCache
                 }
             }
         }
-
-        ArrayPool<IPromise>.Shared.Return(buffer, true);
+        finally
+        {
+            ArrayPool<IPromise>.Shared.Return(buffer, true);
+        }
     }
 
     /// <inheritdoc />
@@ -229,17 +236,37 @@ public sealed class PromiseCache(int size) : IPromiseCache
 
         var clonedPromise = promise.Clone();
 
-        List<Subscription> clone;
-        lock (subscriptions)
+        Span<Subscription> clone = default;
+        Subscription[]? array = null;
+        try
         {
-            clone = [.. subscriptions];
-        }
-
-        foreach (var subscription in clone)
-        {
-            if (subscription is Subscription<T> casted)
+            lock (subscriptions)
             {
-                casted.OnNext(key, clonedPromise);
+                if (subscriptions.Count == 0)
+                {
+                    return;
+                }
+                else
+                {
+                    array = ArrayPool<Subscription>.Shared.Rent(subscriptions.Count);
+                    clone = array.AsSpan(0, subscriptions.Count);
+                    subscriptions.CopyTo(clone);
+                }
+            }
+
+            foreach (var subscription in clone)
+            {
+                if (subscription is Subscription<T> casted)
+                {
+                    casted.OnNext(key, clonedPromise);
+                }
+            }
+        }
+        finally
+        {
+            if (array is not null)
+            {
+                ArrayPool<Subscription>.Shared.Return(array, true);
             }
         }
     }
