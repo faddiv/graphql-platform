@@ -1,7 +1,6 @@
 using System.Buffers;
 using System.Collections.Immutable;
-using GreenDonut.Helpers;
-
+using GreenDonut.Internals;
 using static GreenDonut.NoopDataLoaderDiagnosticEventListener;
 
 namespace GreenDonut;

@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Collections.Concurrent;
-using GreenDonut.Helpers;
+using System.Runtime.InteropServices;
+using GreenDonut.Internals;
 
 namespace GreenDonut;
 
@@ -107,16 +108,34 @@ public sealed class PromiseCache(int size) : IPromiseCache
             return;
         }
 
-        List<Subscription> clone;
-        lock (subscriptions)
+        Subscription[]? array = null;
+        Span<Subscription> clone = default;
+        try
         {
-            clone = subscriptions.ToList();
-        }
-        foreach (var subscription in clone)
-        {
-            if (subscription is Subscription<T> casted)
+            lock (subscriptions)
             {
-                casted.OnNext(promise);
+                if (subscriptions.Count == 0)
+                {
+                    return;
+                }
+
+                array = ArrayPool<Subscription>.Shared.Rent(subscriptions.Count);
+                clone = array.AsSpan(0, subscriptions.Count);
+                subscriptions.CopyTo(clone);
+            }
+            foreach (var subscription in clone)
+            {
+                if (subscription is Subscription<T> casted)
+                {
+                    casted.OnNext(promise);
+                }
+            }
+        }
+        finally
+        {
+            if (array != null)
+            {
+                ArrayPool<Subscription>.Shared.Return(array);
             }
         }
     }
@@ -131,8 +150,7 @@ public sealed class PromiseCache(int size) : IPromiseCache
 
             for (var i = 0; i < values.Length; i++)
             {
-                var promise = Promise<T>.Create(values[i], cloned: true);
-                span[i] = promise;
+                span[i] = Promise<T>.Create(values[i], cloned: true);
             }
 
             _promises2.PushRange(buffer, 0, values.Length);
@@ -144,21 +162,45 @@ public sealed class PromiseCache(int size) : IPromiseCache
                 return;
             }
 
-            List<Subscription> clone;
-            lock (subscriptions)
+            Span<Subscription> clone = default;
+            Subscription[]? array = null;
+            try
             {
-                clone = subscriptions.ToList();
-            }
-            foreach (var subscription in clone)
-            {
-                if (subscription is not Subscription<T> casted)
+                lock (subscriptions)
                 {
-                    continue;
+                    var count = subscriptions.Count;
+                    if (count == 0)
+                    {
+                        return;
+                    }
+                    else if (count > 16)
+                    {
+                        array = ArrayPool<Subscription>.Shared.Rent(count);
+                        clone = array.AsSpan(0, count);
+                    } else
+                    {
+                        var stack = new StackArray16<Subscription>();
+                        clone = MemoryMarshal.CreateSpan(ref stack.first!, count);
+                    }
+                    subscriptions.CopyTo(clone);
                 }
 
-                foreach (var item in span)
+                foreach (var subscription in clone)
                 {
-                    casted.OnNext((Promise<T>)item);
+                    if (subscription is Subscription<T> casted)
+                    {
+                        foreach (var item in span)
+                        {
+                            casted.OnNext((Promise<T>)item);
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                if (array is not null)
+                {
+                    ArrayPool<Subscription>.Shared.Return(array, true);
                 }
             }
         }
@@ -171,10 +213,7 @@ public sealed class PromiseCache(int size) : IPromiseCache
     /// <inheritdoc />
     public IDisposable Subscribe<T>(Action<IPromiseCache, Promise<T>> next, string? skipCacheKeyType)
     {
-        var type = typeof(T);
-        var p1 = _promises2.ToArray();
-        var p2 = _promises.ToArray();
-        var subscriptions = _subscriptions.GetOrAdd(type, _ => []);
+        var subscriptions = _subscriptions.GetOrAdd(typeof(T), _ => []);
         var subscription = new Subscription<T>(this, subscriptions, next, skipCacheKeyType);
 
         lock (subscriptions)
@@ -182,12 +221,14 @@ public sealed class PromiseCache(int size) : IPromiseCache
             subscriptions.Add(subscription);
         }
 
-        foreach (var promise in p1.OfType<Promise<T>>())
+        var promises = _promises2.ToArray();
+        foreach (var promise in promises.OfType<Promise<T>>())
         {
             subscription.OnNext(promise);
         }
 
-        foreach (var keyValuePair in p2)
+        var promisesWithKey = _promises.ToArray();
+        foreach (var keyValuePair in promisesWithKey)
         {
             if (keyValuePair.Value.Promise is Promise<T> promise)
             {
@@ -242,16 +283,22 @@ public sealed class PromiseCache(int size) : IPromiseCache
         {
             lock (subscriptions)
             {
-                if (subscriptions.Count == 0)
+                var count = subscriptions.Count;
+                if (count == 0)
                 {
                     return;
                 }
+                else if (count > 16)
+                {
+                    array = ArrayPool<Subscription>.Shared.Rent(count);
+                    clone = array.AsSpan(0, count);
+                }
                 else
                 {
-                    array = ArrayPool<Subscription>.Shared.Rent(subscriptions.Count);
-                    clone = array.AsSpan(0, subscriptions.Count);
-                    subscriptions.CopyTo(clone);
+                    var stack = new StackArray16<Subscription>();
+                    clone = MemoryMarshal.CreateSpan(ref stack.first!, count);
                 }
+                subscriptions.CopyTo(clone);
             }
 
             foreach (var subscription in clone)

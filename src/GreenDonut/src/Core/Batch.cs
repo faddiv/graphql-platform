@@ -1,9 +1,7 @@
-#define SAFE_BATCH
-
 namespace GreenDonut;
 
 using System.Diagnostics.CodeAnalysis;
-using Helpers;
+using GreenDonut.Internals;
 
 internal class Batch<TKey> where TKey : notnull
 {

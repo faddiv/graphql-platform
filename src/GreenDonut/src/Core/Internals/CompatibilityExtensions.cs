@@ -1,4 +1,4 @@
-namespace GreenDonut.Helpers;
+namespace GreenDonut.Internals;
 
 #if NET9_0_OR_GREATER
 #else
