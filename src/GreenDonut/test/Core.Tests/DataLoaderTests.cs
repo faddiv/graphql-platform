@@ -927,7 +927,7 @@ public class DataLoaderTests(ITestOutputHelper output)
             new AutoBatchScheduler(),
             new DataLoaderOptions { Cache = cache });
         var entity1 = await dataLoader1.LoadAsync(1, CancellationToken.None);
-        await Task.Delay(500);
+        await Task.Delay(50);
 
         // act
         var dataLoader2 = new TestDataLoader2(
