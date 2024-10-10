@@ -3,16 +3,13 @@ using BenchmarkDotNet.Running;
 using GreenDonut.Benchmarks;
 
 Console.WriteLine("Hello, World!");
-/*
-var v = new MultiThreadPerformanceBenchmarks();
-v.Setup();
-var result = await v.UncachedLoad();
-var result2 = await v.CachedLoad();
-*/
+
+await SubscriptionBenchmarks.Test();
 
 BenchmarkRunner.Run(
     [
-        typeof(SingleThreadUncachedBenchmarks),
-        typeof(SingleThreadCachedBenchmarks),
-        typeof(MultiThreadBenchmarks)
+        //typeof(SingleThreadUncachedBenchmarks),
+        //typeof(SingleThreadCachedBenchmarks),
+        //typeof(MultiThreadBenchmarks),
+        typeof(SubscriptionBenchmarks)
     ], args: args);
