@@ -133,7 +133,7 @@ public class Promise<TValue> : IPromise
         }
 
         Task.ContinueWith(
-            static(task, s) =>
+            static (task, s) =>
             {
                 if (task.IsCompletedSuccessfully
                     && task.Result is not null)
@@ -215,8 +215,13 @@ public class Promise<TValue> : IPromise
                 return true;
             }
 
-            _initialized = true;
-            return false;
+            if (lockTaken)
+            {
+                _initialized = true;
+                return false;
+            }
+
+            return true;
         }
         finally
         {

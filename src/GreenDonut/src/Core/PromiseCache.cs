@@ -114,13 +114,21 @@ public sealed class PromiseCache(int size) : IPromiseCache
         {
             lock (subscriptions)
             {
-                if (subscriptions.Count == 0)
+                var count = subscriptions.Count;
+                if (count == 0)
                 {
                     return;
                 }
-
-                array = ArrayPool<Subscription>.Shared.Rent(subscriptions.Count);
-                clone = array.AsSpan(0, subscriptions.Count);
+                else if (count > 16)
+                {
+                    array = ArrayPool<Subscription>.Shared.Rent(count);
+                    clone = array.AsSpan(0, count);
+                }
+                else
+                {
+                    var stack = new StackArray16<Subscription>();
+                    clone = MemoryMarshal.CreateSpan(ref stack.first!, count);
+                }
                 subscriptions.CopyTo(clone);
             }
             foreach (var subscription in clone)
@@ -177,7 +185,8 @@ public sealed class PromiseCache(int size) : IPromiseCache
                     {
                         array = ArrayPool<Subscription>.Shared.Rent(count);
                         clone = array.AsSpan(0, count);
-                    } else
+                    }
+                    else
                     {
                         var stack = new StackArray16<Subscription>();
                         clone = MemoryMarshal.CreateSpan(ref stack.first!, count);
@@ -214,17 +223,19 @@ public sealed class PromiseCache(int size) : IPromiseCache
     public IDisposable Subscribe<T>(Action<IPromiseCache, Promise<T>> next, string? skipCacheKeyType)
     {
         var subscriptions = _subscriptions.GetOrAdd(typeof(T), _ => []);
-        var subscription = new Subscription<T>(this, subscriptions, next, skipCacheKeyType);
+        var subscription = new Subscription<T>(this, next, skipCacheKeyType);
 
         lock (subscriptions)
         {
             subscriptions.Add(subscription);
         }
 
-        var promises = _promises2.ToArray();
-        foreach (var promise in promises.OfType<Promise<T>>())
+        if (!_promises2.IsEmpty)
         {
-            subscription.OnNext(promise);
+            foreach (var promise in _promises2.OfType<Promise<T>>())
+            {
+                subscription.OnNext(promise);
+            }
         }
 
         var promisesWithKey = _promises.ToArray();
@@ -374,11 +385,9 @@ public sealed class PromiseCache(int size) : IPromiseCache
     }
 
     private sealed class Subscription<T>(
-        IPromiseCache owner,
-        List<Subscription> subscriptions,
+        PromiseCache owner,
         Action<IPromiseCache, Promise<T>> next,
-        string? skipCacheKeyType)
-        : Subscription(subscriptions)
+        string? skipCacheKeyType) : Subscription
     {
         public void OnNext(PromiseCacheKey key, Promise<T> promise)
         {
@@ -396,10 +405,14 @@ public sealed class PromiseCache(int size) : IPromiseCache
                 next(owner, promise);
             }
         }
+
+        protected override void Unsubscribe()
+        {
+            owner.Unsubscribe(this);
+        }
     }
 
-    private abstract class Subscription(
-        List<Subscription> subscriptions)
+    private abstract class Subscription
         : IDisposable
     {
         private bool _disposed;
@@ -411,12 +424,23 @@ public sealed class PromiseCache(int size) : IPromiseCache
                 return;
             }
 
-            lock (subscriptions)
-            {
-                subscriptions.Remove(this);
-            }
+            Unsubscribe();
+
 
             _disposed = true;
+        }
+
+        protected abstract void Unsubscribe();
+    }
+
+    private void Unsubscribe<T>(Subscription<T> subscription)
+    {
+        if (_subscriptions.TryGetValue(typeof(T), out var subscriptions))
+        {
+            lock (subscriptions)
+            {
+                subscriptions.Remove(subscription);
+            }
         }
     }
 }
