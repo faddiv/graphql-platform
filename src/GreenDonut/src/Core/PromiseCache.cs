@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using GreenDonut.Internals;
 
@@ -17,10 +18,11 @@ namespace GreenDonut;
 public sealed class PromiseCache(int size) : IPromiseCache
 {
     private const int _minimumSize = 10;
-    private readonly ConcurrentDictionary<PromiseCacheKey, Entry> _promises = new();
+    private readonly ConcurrentDictionary<PromiseCacheKey, IPromise> _promises = new();
     private readonly ConcurrentDictionary<Type, List<Subscription>> _subscriptions = new();
     private readonly ConcurrentStack<IPromise> _promises2 = new();
     private readonly int _size = Math.Max(size, _minimumSize);
+    private Lock _mutationLock = new();
     private int _usage;
 
     /// <inheritdoc />
@@ -29,22 +31,15 @@ public sealed class PromiseCache(int size) : IPromiseCache
     /// <inheritdoc />
     public int Usage => _usage;
 
-    /// <inheritdoc />
-    public Promise<T> GetOrAddPromise<T, TState>(
-        PromiseCacheKey key,
-        Func<PromiseCacheKey, TState, Promise<T>> createPromise,
-        TState state)
+    public bool TryGetOrAddPromise<T, TState>(PromiseCacheKey key, Func<PromiseCacheKey, TState, Promise<T>> createPromise, TState state, out Promise<T> promise)
     {
-        if (key.Type is null)
+        if (_promises.TryGetValue(key, out var entry))
         {
-            throw new ArgumentNullException(nameof(key));
+            promise = entry.As<T>();
+            return true;
         }
 
-        ArgumentNullException.ThrowIfNull(createPromise);
-
-        var result = GetOrAddEntryInternal(key, createPromise, state);
-
-        return result.promise;
+        return !TryAddInternal(key, createPromise, state, out promise);
     }
 
     /// <inheritdoc />
@@ -60,9 +55,7 @@ public sealed class PromiseCache(int size) : IPromiseCache
             throw new ArgumentNullException(nameof(promise));
         }
 
-        var result = GetOrAddEntryInternal(key, static (_, args) => args, promise);
-
-        return result.newEntry;
+        return TryAddInternal(key, static (_, args) => args, promise, out _);
     }
 
     /// <inheritdoc />
@@ -78,21 +71,22 @@ public sealed class PromiseCache(int size) : IPromiseCache
             throw new ArgumentNullException(nameof(createPromise));
         }
 
-        var result = GetOrAddEntryInternal(key, static (_, args) => args(), createPromise);
-
-        return result.newEntry;
+        return TryAddInternal(key, static (_, args) => args(), createPromise, out _);
     }
 
     /// <inheritdoc />
     public bool TryRemove(PromiseCacheKey key)
     {
-        if (!_promises.TryRemove(key, out _))
+        lock (_mutationLock)
         {
-            return false;
-        }
+            if (!_promises.TryRemove(key, out _))
+            {
+                return false;
+            }
 
-        IncrementInternal(-1);
-        return true;
+            IncrementInternal(-1);
+            return true;
+        }
     }
 
     /// <inheritdoc />
@@ -241,7 +235,7 @@ public sealed class PromiseCache(int size) : IPromiseCache
         var promisesWithKey = _promises.ToArray();
         foreach (var keyValuePair in promisesWithKey)
         {
-            if (keyValuePair.Value.Promise is Promise<T> promise)
+            if (keyValuePair.Value is Promise<T> promise)
             {
                 subscription.OnNext(keyValuePair.Key, promise);
             }
@@ -259,24 +253,36 @@ public sealed class PromiseCache(int size) : IPromiseCache
         _usage = 0;
     }
 
-    private (bool newEntry, Promise<T> promise) GetOrAddEntryInternal<T, TState>(
-        PromiseCacheKey key,
-        Func<PromiseCacheKey, TState, Promise<T>> createPromise,
-        TState state)
+    private bool TryAddInternal<T, TState>(PromiseCacheKey key, Func<PromiseCacheKey, TState, Promise<T>> createPromise, TState state, out Promise<T> promise)
     {
-        var usage = _usage;
-        if (usage >= _size)
-        {
-            var nonCachedEntry = new Entry(key, createPromise(key, state));
-            return nonCachedEntry.EnsureInitialized<T>(this, false);
+        promise = createPromise(key, state);
+        if (_usage >= _size)
+        {   
+            return false;
         }
 
-        var entry = _promises.GetOrAdd(
-            key,
-            static (k, args) => new Entry(k, args.createPromise(k, args.state)),
-            (createPromise, state));
+        lock (_mutationLock)
+        {
+            if (_usage >= _size)
+            {
+                return false;
+            }
 
-        return entry.EnsureInitialized<T>(this, true);
+            if (_promises.TryAdd(key, promise))
+            {
+                IncrementInternal(1);
+                promise.NotifySubscribersOnComplete(this, key);
+                return true;
+            }
+        }
+
+        if (_promises.TryGetValue(key, out var entry))
+        {
+            promise = entry.As<T>();
+            return false;
+        }
+
+        throw new InvalidOperationException($"Could not get or add Promise with key: {key}");
     }
 
     internal void NotifySubscribers<T>(in PromiseCacheKey key, in Promise<T> promise)
@@ -332,56 +338,6 @@ public sealed class PromiseCache(int size) : IPromiseCache
     private void IncrementInternal(int value = 1)
     {
         Interlocked.Add(ref _usage, value);
-    }
-
-    private class Entry(PromiseCacheKey key, IPromise promise)
-    {
-        private bool _initialized;
-        private readonly Lock _lock = new();
-        public PromiseCacheKey Key { get; } = key;
-        public IPromise Promise { get; } = promise;
-
-        public (bool newEntry, Promise<T> promise) EnsureInitialized<T>(PromiseCache cache, bool incrementUsage)
-        {
-            if (Promise is not Promise<T> promise)
-            {
-                throw new InvalidOperationException(
-                    $"Promise is not type of {typeof(Promise<T>).FullName}. Real type {Promise.GetType().FullName}");
-            }
-
-            if (_initialized)
-            {
-                return (false, promise);
-            }
-
-            bool notifySubscribers = false;
-            lock (_lock)
-            {
-                if (_initialized)
-                {
-                    return (false, promise);
-                }
-
-                if (!promise.IsClone)
-                {
-                    notifySubscribers = true;
-                }
-
-                if (incrementUsage)
-                {
-                    cache.IncrementInternal();
-                }
-
-                _initialized = true;
-            }
-
-            if (notifySubscribers)
-            {
-                promise.NotifySubscribersOnComplete(cache, Key);
-            }
-
-            return (true, promise);
-        }
     }
 
     private sealed class Subscription<T>(

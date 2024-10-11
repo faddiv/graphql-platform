@@ -134,7 +134,8 @@ public class PromiseCacheTests
         cache.TryRemove(key);
 
         // assert
-        var retrieved = cache.GetOrAddPromise(key, (_, _) => new Promise<string>("Baz"), new object());
+        var getted = cache.TryGetOrAddPromise(key, (_, _) => new Promise<string>("Baz"), new object(), out var retrieved);
+        Assert.False(getted);
         Assert.NotSame(value, retrieved.Task);
     }
 
@@ -166,9 +167,10 @@ public class PromiseCacheTests
         var added = cache.TryAdd(key, expected);
 
         // assert
-        var resolved = cache.GetOrAddPromise(key, (_, _) => new Promise<string>("Baz"), new object());
+        var getted = cache.TryGetOrAddPromise(key, (_, _) => new Promise<string>("Baz"), new object(), out var resolved);
 
         Assert.True(added);
+        Assert.True(getted);
         Assert.Equal(expected.Task, resolved.Task);
     }
 
@@ -185,9 +187,10 @@ public class PromiseCacheTests
         var added = cache.TryAdd(key, () => expected);
 
         // assert
-        var resolved = cache.GetOrAddPromise(key, (_, _) => new Promise<string>(Task.FromResult("Baz")), new object());
+        var getted = cache.TryGetOrAddPromise(key, (_, _) => new Promise<string>(Task.FromResult("Baz")), new object(), out var resolved);
 
         Assert.True(added);
+        Assert.True(getted);
         Assert.Same(expected.Task, resolved.Task);
     }
 
@@ -206,14 +209,15 @@ public class PromiseCacheTests
         var addedSecond = cache.TryAdd(key, new Promise<string>(another));
 
         // assert
-        var resolved = cache.GetOrAddPromise(key, (_, _) => new Promise<string>(Task.FromResult("Quox")), new object());
+        var getted = cache.TryGetOrAddPromise(key, (_, _) => new Promise<string>(Task.FromResult("Quox")), new object(), out var resolved);
 
         Assert.True(addedFirst);
         Assert.False(addedSecond);
+        Assert.True(getted);
         Assert.Same(expected, resolved.Task);
     }
 
-    [Fact(DisplayName = "GetOrAddTask: Should return new item if nothing is cached")]
+    [Fact(DisplayName = "TryGetOrAddPromise: Should return new item if nothing is cached")]
     public async Task GetOrAddTaskWhenNothingIsCached()
     {
         // arrange
@@ -222,13 +226,14 @@ public class PromiseCacheTests
         var key = new PromiseCacheKey("a", "Foo");
 
         // act
-        var resolved = cache.GetOrAddPromise(key, (_, _) => new Promise<string>(Task.FromResult("Quox")), new object());
+        var getted = cache.TryGetOrAddPromise(key, (_, _) => new Promise<string>(Task.FromResult("Quox")), new object(), out var resolved);
 
         // assert
+        Assert.False(getted);
         Assert.Equal("Quox", await resolved.Task);
     }
 
-    [Fact(DisplayName = "TryGetValue (String): Should return one result")]
+    [Fact(DisplayName = "TryGetOrAddPromise (String): Should return one result")]
     public async Task GetOrAddTaskWhenNothingIsCached_IntegerKey()
     {
         // arrange
@@ -237,9 +242,10 @@ public class PromiseCacheTests
         var key = new PromiseCacheKey("a", 1);
 
         // act
-        var resolved = cache.GetOrAddPromise(key, (_, _) => new Promise<string>(Task.FromResult("Quox")), new object());
+        var getted = cache.TryGetOrAddPromise(key, (_, _) => new Promise<string>(Task.FromResult("Quox")), new object(), out var resolved);
 
         // assert
+        Assert.False(getted);
         Assert.Equal("Quox", await resolved.Task);
     }
 }

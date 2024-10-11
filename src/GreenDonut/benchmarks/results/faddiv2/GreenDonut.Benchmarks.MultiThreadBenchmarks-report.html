@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>GreenDonut.Benchmarks.MultiThreadBenchmarks-20241011-215635</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.14.0, Windows 11 (10.0.22631.4317/23H2/2023Update/SunValley3)
+AMD Ryzen 5 2600, 1 CPU, 12 logical and 6 physical cores
+.NET SDK 8.0.403
+  [Host]     : .NET 8.0.10 (8.0.1024.46610), X64 RyuJIT AVX2
+  DefaultJob : .NET 8.0.10 (8.0.1024.46610), X64 RyuJIT AVX2
+</code></pre>
+<pre><code></code></pre>
+
+<table>
+<thead><tr><th>Method         </th><th>Mean</th><th>Error</th><th>StdDev</th><th>Gen0</th><th>Gen1</th><th>Allocated</th>
+</tr>
+</thead><tbody><tr><td>MultiThreadCachedLoad</td><td>5.596 &mu;s</td><td>0.0308 &mu;s</td><td>0.0288 &mu;s</td><td>0.2365</td><td>-</td><td>1008 B</td>
+</tr><tr><td>MultiThreadFirstHit</td><td>223.183 &mu;s</td><td>0.8600 &mu;s</td><td>0.7624 &mu;s</td><td>17.0898</td><td>0.4883</td><td>70669 B</td>
+</tr></tbody></table>
+</body>
+</html>

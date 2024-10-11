@@ -6,8 +6,8 @@ await SubscriptionBenchmarks.Test();
 
 BenchmarkRunner.Run(
     [
-        //typeof(SingleThreadUncachedBenchmarks),
-        //typeof(SingleThreadCachedBenchmarks),
-        //typeof(MultiThreadBenchmarks),
-        typeof(SubscriptionBenchmarks)
+        typeof(SingleThreadUncachedBenchmarks),
+        typeof(SingleThreadCachedBenchmarks),
+        typeof(MultiThreadBenchmarks),
+        typeof(SubscriptionBenchmarks),
     ], args: args);

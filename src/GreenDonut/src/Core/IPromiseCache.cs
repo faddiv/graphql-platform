@@ -34,7 +34,7 @@ public interface IPromiseCache
     /// <exception cref="ArgumentNullException">
     /// Throws if <paramref name="createPromise"/> is <c>null</c>.
     /// </exception>
-    Promise<T> GetOrAddPromise<T, TState>(PromiseCacheKey key, Func<PromiseCacheKey, TState, Promise<T>> createPromise, TState state);
+    bool TryGetOrAddPromise<T, TState>(PromiseCacheKey key, Func<PromiseCacheKey, TState, Promise<T>> createPromise, TState state, out Promise<T> promise);
 
     /// <summary>
     /// Tries to add a single task to the cache. It does nothing if the

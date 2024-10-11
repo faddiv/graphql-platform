@@ -10,7 +10,6 @@ namespace GreenDonut;
 public class Promise<TValue> : IPromise
 {
     private readonly TaskCompletionSource<TValue>? _completionSource;
-    private volatile bool _initialized;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Promise{TValue}"/> class
@@ -199,36 +198,4 @@ public class Promise<TValue> : IPromise
     /// </returns>
     public static implicit operator Promise<TValue>(TaskCompletionSource<TValue> promise)
         => new(promise);
-
-    public bool ResolvedTaskFromCache()
-    {
-        if (_initialized)
-        {
-            return true;
-        }
-        var lockTaken = false;
-        Monitor.TryEnter(Task, ref lockTaken);
-        try
-        {
-            if (_initialized)
-            {
-                return true;
-            }
-
-            if (lockTaken)
-            {
-                _initialized = true;
-                return false;
-            }
-
-            return true;
-        }
-        finally
-        {
-            if (lockTaken)
-            {
-                Monitor.Exit(Task);
-            }
-        }
-    }
 }
