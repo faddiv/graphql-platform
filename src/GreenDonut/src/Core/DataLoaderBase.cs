@@ -358,15 +358,19 @@ public abstract partial class DataLoaderBase<TKey, TValue>
         CancellationToken cancellationToken)
     {
         var cacheKey = new PromiseCacheKey(CacheKeyType, key);
-        var promise = Cache?.GetOrAddPromise(
-                cacheKey,
-                static (_, state) => state.@this.CreatePromiseFromBatch(state.key, state.cancellationToken),
-                (@this: this, key, cancellationToken)) ??
-            CreatePromiseFromBatch(key, cancellationToken);
 
-        if (promise.ResolvedTaskFromCache())
+        Promise<TValue?> promise;
+        if(Cache is null)
         {
-            _diagnosticEvents.ResolvedTaskFromCache(this, cacheKey, promise.Task);
+            promise = CreatePromiseFromBatch(key, cancellationToken);
+        } else
+        {
+            if (Cache.TryGetOrAddPromise(cacheKey,
+                static (_, state) => state.@this.CreatePromiseFromBatch(state.key, state.cancellationToken),
+                (@this: this, key, cancellationToken), out promise))
+            {
+                _diagnosticEvents.ResolvedTaskFromCache(this, cacheKey, promise.Task);
+            }
         }
 
         return promise;
