@@ -2,6 +2,7 @@
 using BenchmarkDotNet.Running;
 using GreenDonut.Benchmarks;
 
+await MultiThreadV2Benchmarks.Test();
 await SubscriptionBenchmarks.Test();
 
 BenchmarkRunner.Run(
@@ -10,4 +11,5 @@ BenchmarkRunner.Run(
         typeof(SingleThreadCachedBenchmarks),
         typeof(MultiThreadBenchmarks),
         typeof(SubscriptionBenchmarks),
+        typeof(MultiThreadV2Benchmarks),
     ], args: args);

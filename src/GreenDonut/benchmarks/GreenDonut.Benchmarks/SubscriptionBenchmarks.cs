@@ -42,19 +42,11 @@ public class SubscriptionBenchmarks
         var benchmark = new SubscriptionBenchmarks();
         benchmark.Setup();
         var result = await benchmark.SubscribeAndNotify();
-        Assert(result.Count == 10, result.Count);
-        Assert(benchmark._notificationCount == 160, benchmark._notificationCount);
+        Asserts.Assert(result.Count == 10, result.Count);
+        Asserts.Assert(benchmark._notificationCount == 160, benchmark._notificationCount);
     }
 
-    private static void Assert(bool condition, object actual, [CallerArgumentExpression(nameof(condition))] string expr = "")
-    {
-        if (!condition)
-        {
-            throw new ApplicationException($"Failed: {expr} Actual: {actual}");
-        }
-        Console.WriteLine($"Success: {expr}");
-    }
-
+    
     [MethodImpl(MethodImplOptions.NoInlining)]
     private void Handler(IPromiseCache cache, Promise<string> promise)
     {
