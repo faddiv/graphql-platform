@@ -8,16 +8,18 @@ public class SingleThreadCachedBenchmarks
 {
     private IBatchScheduler _scheduler = null!;
     private CustomBatchDataLoader _dataLoader = null!;
-    private PromiseCacheOwner _promiseCache = null!;
+    private PromiseCacheOwner _promiseCacheOwner = null!;
+    private IPromiseCache _promiseCache = null!;
 
     [GlobalSetup]
     public void Setup()
     {
         _scheduler = AutoBatchScheduler.Default;
-        _promiseCache = new PromiseCacheOwner();
+        _promiseCacheOwner = new PromiseCacheOwner();
+        _promiseCache = _promiseCacheOwner.Cache;
         var options = new DataLoaderOptions
         {
-            Cache = _promiseCache.Cache,
+            Cache = _promiseCache,
         };
         _dataLoader = new CustomBatchDataLoader(_scheduler, options);
     }
@@ -29,14 +31,9 @@ public class SingleThreadCachedBenchmarks
     }
 
     [Benchmark]
-    public async Task<string?> SingleThreadFirstHitCache()
+    public Task<string?> SingleThreadFirstHitCache()
     {
-        using var promiseCache = new PromiseCacheOwner();
-        var options = new DataLoaderOptions
-        {
-            Cache = promiseCache.Cache,
-        };
-        var dataLoader = new CustomBatchDataLoader(_scheduler, options);
-        return await dataLoader.LoadAsync("abc2");
+        _promiseCache.Clear();
+        return _dataLoader.LoadAsync("abc2");
     }
 }

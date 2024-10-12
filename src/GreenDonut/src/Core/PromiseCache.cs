@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using GreenDonut.Internals;
 
@@ -39,7 +40,19 @@ public sealed class PromiseCache(int size) : IPromiseCache
             return true;
         }
 
-        return !TryAddInternal(key, createPromise, state, out promise);
+        if (TryAddInternal(key, createPromise, state, out var p))
+        {
+            promise = p;
+            return false;
+        }
+
+        if (_promises.TryGetValue(key, out entry))
+        {
+            promise = entry.As<T>();
+            return false;
+        }
+
+        throw new InvalidOperationException($"Could not get or add Promise with key: {key}");
     }
 
     /// <inheritdoc />
@@ -84,7 +97,7 @@ public sealed class PromiseCache(int size) : IPromiseCache
                 return false;
             }
 
-            IncrementInternal(-1);
+            Interlocked.Decrement(ref _usage);
             return true;
         }
     }
@@ -95,7 +108,7 @@ public sealed class PromiseCache(int size) : IPromiseCache
         var promise = Promise<T>.Create(value, cloned: true);
 
         _promises2.Push(promise);
-        IncrementInternal();
+        Interlocked.Increment(ref _usage);
 
         if (!_subscriptions.TryGetValue(typeof(T), out var subscriptions))
         {
@@ -145,6 +158,11 @@ public sealed class PromiseCache(int size) : IPromiseCache
     /// <inheritdoc />
     public void PublishMany<T>(ReadOnlySpan<T> values)
     {
+        if(values.Length == 0)
+        {
+            return;
+        }
+
         var buffer = ArrayPool<IPromise>.Shared.Rent(values.Length);
         try
         {
@@ -156,7 +174,7 @@ public sealed class PromiseCache(int size) : IPromiseCache
             }
 
             _promises2.PushRange(buffer, 0, values.Length);
-            IncrementInternal(values.Length);
+            Interlocked.Add(ref _usage, values.Length);
 
             // now we notify all subscribers that are interested in the current promise type.
             if (!_subscriptions.TryGetValue(typeof(T), out var subscriptions))
@@ -253,11 +271,15 @@ public sealed class PromiseCache(int size) : IPromiseCache
         _usage = 0;
     }
 
-    private bool TryAddInternal<T, TState>(PromiseCacheKey key, Func<PromiseCacheKey, TState, Promise<T>> createPromise, TState state, out Promise<T> promise)
+    private bool TryAddInternal<T, TState>(
+        PromiseCacheKey key,
+        Func<PromiseCacheKey, TState, Promise<T>> createPromise,
+        TState state,
+        [NotNullWhen(true)]out Promise<T>? promise)
     {
-        promise = createPromise(key, state);
         if (_usage >= _size)
-        {   
+        {
+            promise = null;
             return false;
         }
 
@@ -265,24 +287,20 @@ public sealed class PromiseCache(int size) : IPromiseCache
         {
             if (_usage >= _size)
             {
+                promise = null;
                 return false;
             }
 
+            promise = createPromise(key, state);
             if (_promises.TryAdd(key, promise))
             {
-                IncrementInternal(1);
+                Interlocked.Increment(ref _usage);
                 promise.NotifySubscribersOnComplete(this, key);
                 return true;
             }
         }
 
-        if (_promises.TryGetValue(key, out var entry))
-        {
-            promise = entry.As<T>();
-            return false;
-        }
-
-        throw new InvalidOperationException($"Could not get or add Promise with key: {key}");
+        return false;
     }
 
     internal void NotifySubscribers<T>(in PromiseCacheKey key, in Promise<T> promise)

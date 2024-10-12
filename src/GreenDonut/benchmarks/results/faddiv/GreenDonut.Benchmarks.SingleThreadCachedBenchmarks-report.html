@@ -2,7 +2,7 @@
 <html lang='en'>
 <head>
 <meta charset='utf-8' />
-<title>GreenDonut.Benchmarks.SingleThreadCachedBenchmarks-20241006-120001</title>
+<title>GreenDonut.Benchmarks.SingleThreadCachedBenchmarks-20241012-111404</title>
 
 <style type="text/css">
 	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
@@ -13,19 +13,19 @@
 </head>
 <body>
 <pre><code>
-BenchmarkDotNet v0.14.0, Windows 11 (10.0.22631.4169/23H2/2023Update/SunValley3)
+BenchmarkDotNet v0.14.0, Windows 11 (10.0.22631.4317/23H2/2023Update/SunValley3)
 AMD Ryzen 5 2600, 1 CPU, 12 logical and 6 physical cores
-.NET SDK 8.0.400
-  [Host]     : .NET 8.0.8 (8.0.824.36612), X64 RyuJIT AVX2
-  DefaultJob : .NET 8.0.8 (8.0.824.36612), X64 RyuJIT AVX2
+.NET SDK 8.0.403
+  [Host]     : .NET 8.0.10 (8.0.1024.46610), X64 RyuJIT AVX2
+  DefaultJob : .NET 8.0.10 (8.0.1024.46610), X64 RyuJIT AVX2
 </code></pre>
 <pre><code></code></pre>
 
 <table>
 <thead><tr><th>Method             </th><th>Mean </th><th>Error</th><th>StdDev</th><th>Gen0</th><th>Allocated</th>
 </tr>
-</thead><tbody><tr><td>SingleThreadCached</td><td>101.3 ns</td><td>0.46 ns</td><td>0.43 ns</td><td>-</td><td>-</td>
-</tr><tr><td>SingleThreadFirstHitCache</td><td>11,328.1 ns</td><td>226.52 ns</td><td>222.47 ns</td><td>0.5798</td><td>2480 B</td>
+</thead><tbody><tr><td>SingleThreadCached</td><td>92.27 ns</td><td>0.376 ns</td><td>0.333 ns</td><td>-</td><td>-</td>
+</tr><tr><td>SingleThreadFirstHitCache</td><td>8,507.41 ns</td><td>151.790 ns</td><td>141.984 ns</td><td>0.4578</td><td>1976 B</td>
 </tr></tbody></table>
 </body>
 </html>
