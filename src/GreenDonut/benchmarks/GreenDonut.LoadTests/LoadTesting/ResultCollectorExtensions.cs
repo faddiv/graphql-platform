@@ -1,4 +1,4 @@
-namespace GreenDonut.LoadTests;
+namespace GreenDonut.LoadTests.LoadTesting;
 
 public static class ResultCollectorExtensions
 {

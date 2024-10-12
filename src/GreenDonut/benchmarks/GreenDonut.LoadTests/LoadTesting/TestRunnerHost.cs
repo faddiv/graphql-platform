@@ -2,7 +2,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 
-namespace GreenDonut.LoadTests;
+namespace GreenDonut.LoadTests.LoadTesting;
 
 public class TestRunnerHost
 {
@@ -21,7 +21,7 @@ public class TestRunnerHost
 
     public void StartTestRunner(TestRunnerBase tester)
     {
-        if(_collector is null)
+        if (_collector is null)
         {
             _collector = Task.Run(CollectorProcess);
             _runners.Add(_collector);

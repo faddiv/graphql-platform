@@ -1,4 +1,4 @@
-using GreenDonut.LoadTests;
+using GreenDonut.LoadTests.LoadTesting;
 // See https://aka.ms/new-console-template for more information
 Console.WriteLine("Hello, World!");
 

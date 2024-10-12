@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using NBomber;
 
-namespace GreenDonut.LoadTests;
+namespace GreenDonut.LoadTests.LoadTesting;
 
 public class TestRunnerBase(TestRunnerHost root)
 {

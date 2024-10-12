@@ -1,5 +1,4 @@
-
-namespace GreenDonut.LoadTests;
+namespace GreenDonut.LoadTests.LoadTesting;
 
 public class Results
 {
