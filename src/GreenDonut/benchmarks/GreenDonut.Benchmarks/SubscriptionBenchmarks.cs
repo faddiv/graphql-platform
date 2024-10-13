@@ -26,7 +26,7 @@ public class SubscriptionBenchmarks
     }
 
     [Benchmark]
-    public Task<IReadOnlyList<string?>> SubscribeAndNotify()
+    public async Task<IReadOnlyList<string?>> SubscribeAndNotify()
     {
         _notificationCount = 0;
         _dataLoader.Clear();
@@ -34,7 +34,12 @@ public class SubscriptionBenchmarks
         {
             _promiseCache.Cache.Subscribe(_callback, null);
         }
-        return _dataLoader.LoadAsync(_keys);
+        var result = await _dataLoader.LoadAsync(_keys);
+        while(_notificationCount < 160)
+        {
+            await Task.Yield();
+        }
+        return result;
     }
 
     public static async Task Test()

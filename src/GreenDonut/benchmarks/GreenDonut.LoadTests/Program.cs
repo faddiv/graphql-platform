@@ -27,7 +27,6 @@ var scenario = Scenario.Create("load_batch", async context =>
     var count = 100;
     var tasks = new Task<string?>[count];
     var runs = new ConcurrentStack<string>();
-    var time = Stopwatch.GetTimestamp();
     for (int i = 0; i < count; i++)
     {
         var index = i;
@@ -58,6 +57,7 @@ var scenario = Scenario.Create("load_batch", async context =>
             return await task;
         });
     }
+    var time = Stopwatch.GetTimestamp();
     while (runs.Count < count)
     {
         if (Stopwatch.GetElapsedTime(time) > TimeSpan.FromMilliseconds(500))
