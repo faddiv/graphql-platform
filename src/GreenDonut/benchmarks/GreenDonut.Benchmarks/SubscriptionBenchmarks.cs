@@ -29,7 +29,7 @@ public class SubscriptionBenchmarks
     public async Task<IReadOnlyList<string?>> SubscribeAndNotify()
     {
         _notificationCount = 0;
-        _dataLoader.Clear();
+        _dataLoader.ClearCache();
         for (var i = 0; i < 16; i++)
         {
             _promiseCache.Cache.Subscribe(_callback, null);
