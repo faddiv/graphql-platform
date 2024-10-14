@@ -1,4 +1,4 @@
-namespace GreenDonut;
+namespace GreenDonutV2;
 
 internal class AggregateDataLoaderDiagnosticEventListener(
     IDataLoaderDiagnosticEventListener[] listeners)

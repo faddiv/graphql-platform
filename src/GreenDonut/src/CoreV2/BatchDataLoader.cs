@@ -1,4 +1,4 @@
-namespace GreenDonut;
+namespace GreenDonutV2;
 
 /// <summary>
 /// The BatchDataLoader is the most commonly used variant of DataLoader and is optimized to

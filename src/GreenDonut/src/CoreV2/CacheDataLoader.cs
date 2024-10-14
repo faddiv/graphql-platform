@@ -1,4 +1,4 @@
-namespace GreenDonut;
+namespace GreenDonutV2;
 
 public abstract class CacheDataLoader<TKey, TValue>
     : DataLoaderBase<TKey, TValue>

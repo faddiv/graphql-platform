@@ -1,6 +1,6 @@
 using Microsoft.Extensions.ObjectPool;
 
-namespace GreenDonut;
+namespace GreenDonutV2;
 
 internal class BatchPooledObjectPolicy<TKey>
         : PooledObjectPolicy<Batch<TKey>>

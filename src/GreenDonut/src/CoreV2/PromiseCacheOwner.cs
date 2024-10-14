@@ -1,6 +1,6 @@
 using Microsoft.Extensions.ObjectPool;
 
-namespace GreenDonut;
+namespace GreenDonutV2;
 
 /// <summary>
 /// Owner of <see cref="PromiseCache"/> that is responsible for returning the rented

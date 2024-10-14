@@ -1,4 +1,4 @@
-namespace GreenDonut;
+namespace GreenDonutV2;
 
 /// <summary>
 /// Defines the type of result.

@@ -1,6 +1,6 @@
 using Microsoft.Extensions.ObjectPool;
 
-namespace GreenDonut;
+namespace GreenDonutV2;
 
 /// <summary>
 /// This helper class gives easy access to cache pool factories and the shared cache pool.

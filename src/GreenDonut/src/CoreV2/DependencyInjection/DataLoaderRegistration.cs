@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 
-namespace GreenDonut.DependencyInjection;
+namespace GreenDonutV2.DependencyInjection;
 
 /// <summary>
 /// Represents a registration for a DataLoader.

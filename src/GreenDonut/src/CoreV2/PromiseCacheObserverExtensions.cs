@@ -1,4 +1,4 @@
-namespace GreenDonut;
+namespace GreenDonutV2;
 
 /// <summary>
 /// Provides extension methods for <see cref="IPromiseCacheObserver"/>.

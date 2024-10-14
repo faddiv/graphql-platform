@@ -1,4 +1,4 @@
-namespace GreenDonut;
+namespace GreenDonutV2;
 
 /// <summary>
 /// A data fetching delegate for <c>DataLoader</c>. For every provided key

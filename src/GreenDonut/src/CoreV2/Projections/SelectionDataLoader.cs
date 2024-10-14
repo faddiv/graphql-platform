@@ -1,4 +1,4 @@
-namespace GreenDonut.Projections;
+namespace GreenDonutV2.Projections;
 
 internal sealed class SelectionDataLoader<TKey, TValue>
     : DataLoaderBase<TKey, TValue>

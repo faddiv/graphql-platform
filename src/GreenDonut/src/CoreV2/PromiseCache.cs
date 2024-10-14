@@ -2,9 +2,9 @@ using System.Buffers;
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
-using GreenDonut.Internals;
+using GreenDonutV2.Internals;
 
-namespace GreenDonut;
+namespace GreenDonutV2;
 
 /// <summary>
 /// A memorization cache for <c>DataLoader</c>.

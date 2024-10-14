@@ -1,4 +1,4 @@
-namespace GreenDonut;
+namespace GreenDonutV2;
 
 /// <summary>
 /// The <see cref="FetchOnceDataLoader{TValue}"/> fetches a single object and caches it.

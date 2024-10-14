@@ -1,4 +1,4 @@
-namespace GreenDonut;
+namespace GreenDonutV2;
 
 /// <summary>
 /// The batch scheduler is used by the DataLoader to defer the data fetching

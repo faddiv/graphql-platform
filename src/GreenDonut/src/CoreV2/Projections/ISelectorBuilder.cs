@@ -1,7 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 
-namespace GreenDonut.Projections;
+namespace GreenDonutV2.Projections;
 
 /// <summary>
 /// The selector builder allows to build up a selector expression

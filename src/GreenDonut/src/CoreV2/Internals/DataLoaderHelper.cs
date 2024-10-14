@@ -1,4 +1,4 @@
-namespace GreenDonut.Internals;
+namespace GreenDonutV2.Internals;
 
 /// <summary>
 /// This helper allows to access internal members of the

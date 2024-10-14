@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 
-namespace GreenDonut;
+namespace GreenDonutV2;
 
 /// <summary>
 /// A bunch of convenient <c>DataLoader</c> extension methods.

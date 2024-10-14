@@ -1,6 +1,6 @@
 using Microsoft.Extensions.ObjectPool;
 
-namespace GreenDonut;
+namespace GreenDonutV2;
 
 internal static class BatchPool<TKey> where TKey : notnull
 {

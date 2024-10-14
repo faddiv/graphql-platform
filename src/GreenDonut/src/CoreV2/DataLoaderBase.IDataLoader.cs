@@ -1,4 +1,4 @@
-namespace GreenDonut;
+namespace GreenDonutV2;
 
 public abstract partial class DataLoaderBase<TKey, TValue>
 {

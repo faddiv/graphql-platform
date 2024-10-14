@@ -1,4 +1,4 @@
-namespace GreenDonut.DependencyInjection;
+namespace GreenDonutV2.DependencyInjection;
 
 /// <summary>
 /// The DataLoader scope provides access to the DataLoader bound to the current execution.

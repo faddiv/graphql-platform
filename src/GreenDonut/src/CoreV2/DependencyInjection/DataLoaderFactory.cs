@@ -1,4 +1,4 @@
-namespace GreenDonut.DependencyInjection;
+namespace GreenDonutV2.DependencyInjection;
 
 /// <summary>
 /// Represents a factory that creates a DataLoader instance.

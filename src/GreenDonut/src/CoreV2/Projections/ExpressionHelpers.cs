@@ -1,7 +1,7 @@
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace GreenDonut.Projections;
+namespace GreenDonutV2.Projections;
 
 internal static class ExpressionHelpers
 {

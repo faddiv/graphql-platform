@@ -1,4 +1,4 @@
-namespace GreenDonut;
+namespace GreenDonutV2;
 
 /// <summary>
 /// Defines a batch dispatcher that immediately dispatches batch jobs.

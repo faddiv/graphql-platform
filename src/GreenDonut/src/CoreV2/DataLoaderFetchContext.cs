@@ -1,8 +1,8 @@
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
-using GreenDonut.Projections;
+using GreenDonutV2.Projections;
 
-namespace GreenDonut;
+namespace GreenDonutV2;
 
 /// <summary>
 /// The fetch context is used to pass a snapshot of the transient DataLoader state into a fetch call.

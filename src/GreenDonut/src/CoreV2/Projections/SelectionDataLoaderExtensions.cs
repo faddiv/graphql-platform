@@ -1,9 +1,9 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 using System.Reflection;
-using static GreenDonut.Projections.ExpressionHelpers;
+using static GreenDonutV2.Projections.ExpressionHelpers;
 
-namespace GreenDonut.Projections;
+namespace GreenDonutV2.Projections;
 
 /// <summary>
 /// Data loader extensions for projections.

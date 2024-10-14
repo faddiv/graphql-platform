@@ -1,4 +1,4 @@
-namespace GreenDonut.Projections;
+namespace GreenDonutV2.Projections;
 
 /// <summary>
 /// A selection DataLoader is a version of a DataLoader that

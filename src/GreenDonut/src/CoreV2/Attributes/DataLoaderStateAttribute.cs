@@ -1,4 +1,4 @@
-namespace GreenDonut;
+namespace GreenDonutV2;
 
 /// <summary>
 /// Marks parameters that shall be mapped from the DataLoader state when using source generated DataLoader.

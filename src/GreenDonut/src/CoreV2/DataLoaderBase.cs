@@ -1,9 +1,9 @@
 using System.Buffers;
 using System.Collections.Immutable;
-using GreenDonut.Internals;
-using static GreenDonut.NoopDataLoaderDiagnosticEventListener;
+using GreenDonutV2.Internals;
+using static GreenDonutV2.NoopDataLoaderDiagnosticEventListener;
 
-namespace GreenDonut;
+namespace GreenDonutV2;
 
 public abstract partial class DataLoaderBase<TKey, TValue>
     : IDataLoader<TKey, TValue>

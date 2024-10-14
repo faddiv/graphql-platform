@@ -1,4 +1,4 @@
-namespace GreenDonut;
+namespace GreenDonutV2;
 
 /// <summary>
 /// An options object to configure the behavior for <c>DataLoader</c>.

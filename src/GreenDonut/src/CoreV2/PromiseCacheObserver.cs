@@ -1,4 +1,4 @@
-namespace GreenDonut;
+namespace GreenDonutV2;
 
 /// <summary>
 /// Provides factory methods to create <see cref="IPromiseCacheObserver"/>s.

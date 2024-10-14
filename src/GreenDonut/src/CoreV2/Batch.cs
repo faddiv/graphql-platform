@@ -1,7 +1,7 @@
-namespace GreenDonut;
+namespace GreenDonutV2;
 
 using System.Diagnostics.CodeAnalysis;
-using GreenDonut.Internals;
+using GreenDonutV2.Internals;
 
 internal class Batch<TKey> where TKey : notnull
 {

@@ -1,7 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 
-namespace GreenDonut.Projections;
+namespace GreenDonutV2.Projections;
 
 [Experimental(Experiments.Projections)]
 internal sealed class DefaultSelectorBuilder<TValue> : ISelectorBuilder

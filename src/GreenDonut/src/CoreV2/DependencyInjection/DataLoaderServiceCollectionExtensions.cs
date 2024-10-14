@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Frozen;
-using GreenDonut;
-using GreenDonut.DependencyInjection;
+using GreenDonutV2;
+using GreenDonutV2.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.ObjectPool;
 

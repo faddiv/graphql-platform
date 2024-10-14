@@ -21,7 +21,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GreenDonut.Benchmarks", "be
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "benchmarks", "benchmarks", "{466A6A9B-F73E-4C7F-AAE7-782BF991A47F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GreenDonut.LoadTests", "benchmarks\GreenDonut.LoadTests\GreenDonut.LoadTests.csproj", "{A0868664-F21E-4407-9801-5EDBB013C66F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GreenDonut.LoadTests", "benchmarks\GreenDonut.LoadTests\GreenDonut.LoadTests.csproj", "{A0868664-F21E-4407-9801-5EDBB013C66F}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GreenDonutV2", "src\CoreV2\GreenDonutV2.csproj", "{A966E03E-BC52-42BF-BF01-E16A7CAB0EB7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -45,6 +47,10 @@ Global
 		{A0868664-F21E-4407-9801-5EDBB013C66F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A0868664-F21E-4407-9801-5EDBB013C66F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A0868664-F21E-4407-9801-5EDBB013C66F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A966E03E-BC52-42BF-BF01-E16A7CAB0EB7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A966E03E-BC52-42BF-BF01-E16A7CAB0EB7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A966E03E-BC52-42BF-BF01-E16A7CAB0EB7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A966E03E-BC52-42BF-BF01-E16A7CAB0EB7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -54,6 +60,7 @@ Global
 		{1F96BB47-B053-4E9C-865A-5B6FB613CB0D} = {A829F8F0-4468-405C-8A26-3E5921F7324A}
 		{225C7733-03CD-4BF8-A407-205AB1482DDE} = {466A6A9B-F73E-4C7F-AAE7-782BF991A47F}
 		{A0868664-F21E-4407-9801-5EDBB013C66F} = {466A6A9B-F73E-4C7F-AAE7-782BF991A47F}
+		{A966E03E-BC52-42BF-BF01-E16A7CAB0EB7} = {251185F7-7E3B-4BB3-B500-56C90564EE8C}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CC1769AF-BDF5-4EF2-AED8-1719C180F131}

@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
 
-namespace GreenDonut.Internals;
+namespace GreenDonutV2.Internals;
 
 [InlineArray(16)]
 internal struct StackArray16<T>
