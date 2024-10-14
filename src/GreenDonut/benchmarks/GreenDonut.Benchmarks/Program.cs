@@ -2,12 +2,13 @@
 using BenchmarkDotNet.Running;
 using GreenDonut.Benchmarks;
 
+await MultiThreadBenchmarks.Test();
 await SubscriptionBenchmarks.Test();
+await SingleThreadBenchmarks.Test();
 
 BenchmarkRunner.Run(
     [
-        typeof(SingleThreadUncachedBenchmarks),
-        typeof(SingleThreadCachedBenchmarks),
+        typeof(SingleThreadBenchmarks),
         typeof(MultiThreadBenchmarks),
         typeof(SubscriptionBenchmarks),
     ], args: args);
