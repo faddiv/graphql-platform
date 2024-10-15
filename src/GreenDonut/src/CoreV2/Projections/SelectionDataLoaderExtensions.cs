@@ -1,6 +1,8 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 using System.Reflection;
+using GreenDonut;
+using GreenDonut.Projections;
 using static GreenDonutV2.Projections.ExpressionHelpers;
 
 namespace GreenDonutV2.Projections;
@@ -32,7 +34,7 @@ public static class SelectionDataLoaderExtensions
     /// <exception cref="ArgumentNullException">
     /// Throws if <paramref name="dataLoader"/> is <c>null</c>.
     /// </exception>
-    public static ISelectionDataLoader<TKey, TValue> Select<TKey, TValue>(
+    public static ISelectionDataLoader<TKey, TValue> Select2<TKey, TValue>(
         this IDataLoader<TKey, TValue> dataLoader,
         Expression<Func<TValue, TValue>> selector)
         where TKey : notnull
@@ -55,8 +57,8 @@ public static class SelectionDataLoaderExtensions
             IDataLoader<TKey, TValue> dataLoader,
             Expression<Func<TValue, TValue>> selector)
         {
-            var branch =  new SelectionDataLoader<TKey, TValue>(
-                (DataLoaderBase<TKey, TValue>)dataLoader,
+            var branch =  new SelectionDataLoader2<TKey, TValue>(
+                (DataLoaderBase2<TKey, TValue>)dataLoader,
                 key);
             var context = new DefaultSelectorBuilder<TValue>();
             branch.ContextData = branch.ContextData.SetItem(typeof(ISelectorBuilder).FullName!, context);
@@ -86,7 +88,7 @@ public static class SelectionDataLoaderExtensions
     /// <exception cref="ArgumentNullException">
     /// Throws if <paramref name="dataLoader"/> is <c>null</c>.
     /// </exception>
-    public static ISelectionDataLoader<TKey, TValue> Select<TKey, TValue>(
+    public static ISelectionDataLoader<TKey, TValue> Select2<TKey, TValue>(
         this ISelectionDataLoader<TKey, TValue> dataLoader,
         Expression<Func<TValue, TValue>> selector)
         where TKey : notnull
@@ -178,7 +180,7 @@ public static class SelectionDataLoaderExtensions
     }
     */
 
-    public static ISelectionDataLoader<TKey, TValue> Include<TKey, TValue>(
+    public static ISelectionDataLoader<TKey, TValue> Include2<TKey, TValue>(
         this ISelectionDataLoader<TKey, TValue> dataLoader,
         Expression<Func<TValue, object?>> includeSelector)
         where TKey : notnull
@@ -211,51 +213,5 @@ public static class SelectionDataLoaderExtensions
         var context = (DefaultSelectorBuilder<TValue>)dataLoader.ContextData[typeof(ISelectorBuilder).FullName!]!;
         context.Add(Rewrite(includeSelector));
         return dataLoader;
-    }
-
-    /// <summary>
-    /// Applies the selector from the DataLoader state to a queryable.
-    /// </summary>
-    /// <param name="query">
-    /// The queryable to apply the selector to.
-    /// </param>
-    /// <param name="builder">
-    /// The selector builder.
-    /// </param>
-    /// <param name="key">
-    /// The DataLoader key.
-    /// </param>
-    /// <typeparam name="T">
-    /// The queryable type.
-    /// </typeparam>
-    /// <returns>
-    /// Returns a selector query on which a key must be applied to fetch the data.
-    /// </returns>
-    /// <exception cref="ArgumentNullException">
-    /// Throws if <paramref name="query"/> is <c>null</c>.
-    /// </exception>
-    public static IQueryable<T> Select<T>(
-        this IQueryable<T> query,
-        ISelectorBuilder builder,
-        Expression<Func<T, object?>> key)
-    {
-        if (query is null)
-        {
-            throw new ArgumentNullException(nameof(query));
-        }
-
-        if (builder is null)
-        {
-            throw new ArgumentNullException(nameof(builder));
-        }
-
-        var selector = builder.TryCompile<T>();
-
-        if (selector is not null)
-        {
-            query = query.Select(Combine(selector, Rewrite(key)));
-        }
-
-        return query;
     }
 }

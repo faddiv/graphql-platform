@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
+using GreenDonut.Projections;
 
 namespace GreenDonutV2.Projections;
 

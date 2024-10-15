@@ -1,7 +1,9 @@
 using System.Buffers;
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using GreenDonut;
 using GreenDonutV2.Internals;
 
 namespace GreenDonutV2;
@@ -10,12 +12,12 @@ namespace GreenDonutV2;
 /// A memorization cache for <c>DataLoader</c>.
 /// </summary>
 /// <remarks>
-/// Creates a new instance of <see cref="PromiseCache"/>.
+/// Creates a new instance of <see cref="PromiseCache2"/>.
 /// </remarks>
 /// <param name="size">
 /// The size of the cache. The minimum cache size is 10.
 /// </param>
-public sealed class PromiseCache(int size) : IPromiseCache
+public sealed class PromiseCache2(int size) : IPromiseCache2
 {
     private const int _minimumSize = 10;
     private readonly ConcurrentDictionary<PromiseCacheKey, IPromise> _promises = new();
@@ -31,7 +33,11 @@ public sealed class PromiseCache(int size) : IPromiseCache
     /// <inheritdoc />
     public int Usage => _usage;
 
-    public bool TryGetOrAddPromise<T, TState>(PromiseCacheKey key, Func<PromiseCacheKey, TState, Promise<T>> createPromise, TState state, out Promise<T> promise)
+    public bool TryGetOrAddPromise<T, TState>(
+        PromiseCacheKey key,
+        Func<PromiseCacheKey, TState, Promise<T>> createPromise,
+        TState state,
+        out Promise<T> promise)
     {
         if (_promises.TryGetValue(key, out var entry))
         {
@@ -41,7 +47,7 @@ public sealed class PromiseCache(int size) : IPromiseCache
 
         if (TryAddInternal(key, createPromise, state, out var p))
         {
-            promise = p;
+            promise = p.Value;
             return false;
         }
 
@@ -54,6 +60,16 @@ public sealed class PromiseCache(int size) : IPromiseCache
         throw new InvalidOperationException($"Could not get or add Promise with key: {key}");
     }
 
+    public Task<T> GetOrAddTask<T>(PromiseCacheKey key, Func<PromiseCacheKey, Promise<T>> createPromise)
+    {
+        TryGetOrAddPromise(
+            key,
+            static (key, p) =>  p(key),
+            createPromise,
+            out var promise);
+        return promise.Task;
+    }
+
     /// <inheritdoc />
     public bool TryAdd<T>(PromiseCacheKey key, Promise<T> promise)
     {
@@ -62,7 +78,7 @@ public sealed class PromiseCache(int size) : IPromiseCache
             throw new ArgumentNullException(nameof(key));
         }
 
-        if (promise?.Task is null)
+        if (promise.Task is null)
         {
             throw new ArgumentNullException(nameof(promise));
         }
@@ -294,12 +310,31 @@ public sealed class PromiseCache(int size) : IPromiseCache
             if (_promises.TryAdd(key, promise))
             {
                 Interlocked.Increment(ref _usage);
-                promise.NotifySubscribersOnComplete(this, key);
+                NotifySubscribersOnComplete(promise.Value, key);
                 return true;
             }
         }
 
         return false;
+    }
+
+    internal void NotifySubscribersOnComplete<TValue>(Promise<TValue> promise, PromiseCacheKey key)
+    {
+        if (promise.IsClone)
+        {
+            throw new InvalidCastException(
+                "The promise is a clone and cannot be used to register a callback.");
+        }
+        promise.Task.ContinueWith(
+            (task) =>
+            {
+                if (task.IsCompletedSuccessfully
+                    && task.Result is not null)
+                {
+                    NotifySubscribers(key, promise);
+                }
+            },
+            TaskContinuationOptions.OnlyOnRanToCompletion);
     }
 
     internal void NotifySubscribers<T>(in PromiseCacheKey key, in Promise<T> promise)
@@ -358,7 +393,7 @@ public sealed class PromiseCache(int size) : IPromiseCache
     }
 
     private sealed class Subscription<T>(
-        PromiseCache owner,
+        PromiseCache2 owner,
         Action<IPromiseCache, Promise<T>> next,
         string? skipCacheKeyType) : Subscription
     {

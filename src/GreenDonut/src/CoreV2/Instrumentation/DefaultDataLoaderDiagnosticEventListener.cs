@@ -1,3 +1,5 @@
+using GreenDonut;
+
 namespace GreenDonutV2;
 
 internal sealed class NoopDataLoaderDiagnosticEventListener : DataLoaderDiagnosticEventListener

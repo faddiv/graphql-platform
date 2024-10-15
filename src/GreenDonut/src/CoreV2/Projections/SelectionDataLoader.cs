@@ -1,14 +1,17 @@
+using GreenDonut;
+using GreenDonut.Projections;
+
 namespace GreenDonutV2.Projections;
 
-internal sealed class SelectionDataLoader<TKey, TValue>
-    : DataLoaderBase<TKey, TValue>
+internal sealed class SelectionDataLoader2<TKey, TValue>
+    : DataLoaderBase2<TKey, TValue>
     , ISelectionDataLoader<TKey, TValue>
     where TKey : notnull
 {
-    private readonly DataLoaderBase<TKey, TValue> _root;
+    private readonly DataLoaderBase2<TKey, TValue> _root;
 
-    public SelectionDataLoader(
-        DataLoaderBase<TKey, TValue> root,
+    public SelectionDataLoader2(
+        DataLoaderBase2<TKey, TValue> root,
         string selectionKey)
         : base(root.BatchScheduler, root.Options)
     {

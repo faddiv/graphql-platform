@@ -17,11 +17,15 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Update="DataLoaderBase.Fetch.cs">
-      <DependentUpon>DataLoaderBase.cs</DependentUpon>
+    <ProjectReference Include="..\Core\GreenDonut.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="DataLoaderBase2.Fetch.cs">
+      <DependentUpon>DataLoaderBase2.cs</DependentUpon>
     </Compile>
-    <Compile Update="DataLoaderBase.IDataLoader.cs">
-      <DependentUpon>DataLoaderBase.cs</DependentUpon>
+    <Compile Update="DataLoaderBase2.IDataLoader.cs">
+      <DependentUpon>DataLoaderBase2.cs</DependentUpon>
     </Compile>
   </ItemGroup>
 

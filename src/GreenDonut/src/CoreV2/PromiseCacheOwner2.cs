@@ -1,3 +1,4 @@
+using GreenDonut;
 using Microsoft.Extensions.ObjectPool;
 
 namespace GreenDonutV2;
@@ -6,25 +7,25 @@ namespace GreenDonutV2;
 /// Owner of <see cref="PromiseCache"/> that is responsible for returning the rented
 /// <see cref="PromiseCache"/> appropriately to the <see cref="ObjectPool{TaskCache}"/>.
 /// </summary>
-public sealed class PromiseCacheOwner : IDisposable
+public sealed class PromiseCacheOwner2 : IDisposable
 {
-    private readonly ObjectPool<PromiseCache> _pool;
-    private readonly PromiseCache _cache;
+    private readonly ObjectPool<PromiseCache2> _pool;
+    private readonly PromiseCache2 _cache;
     private bool _disposed;
 
     /// <summary>
     /// Rents a new cache from <see cref="PromiseCachePool.Shared"/>.
     /// </summary>
-    public PromiseCacheOwner()
+    public PromiseCacheOwner2()
     {
-        _pool = PromiseCachePool.Shared;
-        _cache = PromiseCachePool.Shared.Get();
+        _pool = PromiseCachePool2.Shared;
+        _cache = PromiseCachePool2.Shared.Get();
     }
 
     /// <summary>
     /// Rents a new cache from the given <paramref name="pool"/>.
     /// </summary>
-    public PromiseCacheOwner(ObjectPool<PromiseCache> pool)
+    public PromiseCacheOwner2(ObjectPool<PromiseCache2> pool)
     {
         _pool = pool ?? throw new ArgumentNullException(nameof(pool));
         _cache = pool.Get();

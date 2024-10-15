@@ -1,3 +1,5 @@
+using GreenDonut;
+
 namespace GreenDonutV2;
 
 /// <summary>
@@ -12,7 +14,7 @@ public static class PromiseCacheObserverExtensions
     /// The <see cref="IPromiseCacheObserver"/> to accept the cache.
     /// </param>
     /// <param name="dataLoader">
-    /// The <see cref="DataLoaderBase{TKey, TValue}"/> to accept the cache from.
+    /// The <see cref="DataLoaderBase2{TKey, TValue}"/> to accept the cache from.
     /// </param>
     /// <typeparam name="TKey">
     /// The type of the cache key.
@@ -25,7 +27,7 @@ public static class PromiseCacheObserverExtensions
     /// </exception>
     public static void Accept<TKey, TValue>(
         this IPromiseCacheObserver observer,
-        DataLoaderBase<TKey, TValue> dataLoader)
+        DataLoaderBase2<TKey, TValue> dataLoader)
         where TKey : notnull
     {
         if (observer == null)

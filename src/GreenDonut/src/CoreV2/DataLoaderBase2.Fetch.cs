@@ -1,6 +1,8 @@
+using GreenDonut;
+
 namespace GreenDonutV2;
 
-public abstract partial class DataLoaderBase<TKey, TValue>
+public abstract partial class DataLoaderBase2<TKey, TValue>
 {
     /// <summary>
     /// A batch loading function which has to be implemented for each

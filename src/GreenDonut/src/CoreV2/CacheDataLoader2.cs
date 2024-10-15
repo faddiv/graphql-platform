@@ -1,10 +1,12 @@
+using GreenDonut;
+
 namespace GreenDonutV2;
 
-public abstract class CacheDataLoader<TKey, TValue>
-    : DataLoaderBase<TKey, TValue>
+public abstract class CacheDataLoader2<TKey, TValue>
+    : DataLoaderBase2<TKey, TValue>
     where TKey : notnull
 {
-    protected CacheDataLoader(DataLoaderOptions options)
+    protected CacheDataLoader2(DataLoaderOptions options)
         : base(AutoBatchScheduler.Default, CreateLocalOptions(options))
     {
         if (options is null)
@@ -53,11 +55,11 @@ public abstract class CacheDataLoader<TKey, TValue>
     }
 }
 
-public abstract class StatefulCacheDataLoader<TKey, TValue>
-    : DataLoaderBase<TKey, TValue>
+public abstract class StatefulCacheDataLoader2<TKey, TValue>
+    : DataLoaderBase2<TKey, TValue>
     where TKey : notnull
 {
-    protected StatefulCacheDataLoader(DataLoaderOptions options)
+    protected StatefulCacheDataLoader2(DataLoaderOptions options)
         : base(AutoBatchScheduler.Default, CreateLocalOptions(options))
     {
         if (options is null)

@@ -1,3 +1,5 @@
+using GreenDonut;
+
 namespace GreenDonutV2.Internals;
 
 internal static class PromiseExtensions

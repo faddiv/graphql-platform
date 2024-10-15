@@ -1,48 +1,45 @@
+using GreenDonut;
+
 namespace GreenDonutV2;
 
 /// <summary>
-/// The BatchDataLoader is the most commonly used variant of DataLoader and is optimized to
-/// fetch multiple items in a single batch from the database.
+/// The GroupedDataLoader is used to fetch a collection of items for
+/// a single provided key in a batch.
 /// </summary>
 /// <typeparam name="TKey">A key type.</typeparam>
 /// <typeparam name="TValue">A value type.</typeparam>
-public abstract class BatchDataLoader<TKey, TValue>
-    : DataLoaderBase<TKey, TValue>
+public abstract class GroupedDataLoader2<TKey, TValue>
+    : DataLoaderBase2<TKey, TValue[]>
     where TKey : notnull
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="BatchDataLoader{TKey, TValue}"/> class.
+    /// Initializes a new instance of the <see cref="GroupedDataLoader2{TKey, TValue}"/> class.
     /// </summary>
     /// <param name="batchScheduler">
     /// A scheduler to tell the <c>DataLoader</c> when to dispatch buffered batches.
     /// </param>
     /// <param name="options">
     /// An options object to configure the behavior of this particular
-    /// <see cref="BatchDataLoader{TKey, TValue}"/>.
+    /// <see cref="GroupedDataLoader2{TKey, TValue}"/>.
     /// </param>
     /// <exception cref="ArgumentNullException">
     /// Throws if <paramref name="options"/> is <c>null</c>.
     /// </exception>
-    protected BatchDataLoader(
+    protected GroupedDataLoader2(
         IBatchScheduler batchScheduler,
-        DataLoaderOptions options)
+        DataLoaderOptions? options = null)
         : base(batchScheduler, options)
-    {
-        if (options is null)
-        {
-            throw new ArgumentNullException(nameof(options));
-        }
-    }
+    { }
 
     /// <inheritdoc />
     protected internal sealed override async ValueTask FetchAsync(
         IReadOnlyList<TKey> keys,
-        Memory<Result<TValue?>> results,
-        DataLoaderFetchContext<TValue> context,
+        Memory<Result<TValue[]?>> results,
+        DataLoaderFetchContext<TValue[]> context,
         CancellationToken cancellationToken)
     {
         var result =
-            await LoadBatchAsync(keys, cancellationToken)
+            await LoadGroupedBatchAsync(keys, cancellationToken)
                 .ConfigureAwait(false);
 
         CopyResults(keys, results.Span, result);
@@ -50,78 +47,66 @@ public abstract class BatchDataLoader<TKey, TValue>
 
     private static void CopyResults(
         IReadOnlyList<TKey> keys,
-        Span<Result<TValue?>> results,
-        IReadOnlyDictionary<TKey, TValue> resultMap)
+        Span<Result<TValue[]?>> results,
+        ILookup<TKey, TValue> resultLookup)
     {
         for (var i = 0; i < keys.Count; i++)
         {
-            if (resultMap.TryGetValue(keys[i], out var value))
-            {
-                results[i] = value;
-            }
-            else
-            {
-                results[i] = null;
-            }
+            results[i] = resultLookup[keys[i]].ToArray();
         }
     }
 
     /// <summary>
-    /// Loads the data for a batch from the data source.
+    /// Loads the data for a grouped batch from the data source.
     /// </summary>
     /// <param name="keys">The keys that shall be fetched in a batch.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>
-    /// Returns a dictionary holding the fetched data.
+    /// Returns a lookup holding the fetched data.
     /// </returns>
-    protected abstract Task<IReadOnlyDictionary<TKey, TValue>> LoadBatchAsync(
+    protected abstract Task<ILookup<TKey, TValue>> LoadGroupedBatchAsync(
         IReadOnlyList<TKey> keys,
         CancellationToken cancellationToken);
 }
 
 /// <summary>
-/// The BatchDataLoader is the most commonly used variant of DataLoader and is optimized to
-/// fetch multiple items in a single batch from the database.
+/// The GroupedDataLoader is used to fetch a collection of items for
+/// a single provided key in a batch.
 /// </summary>
 /// <typeparam name="TKey">A key type.</typeparam>
 /// <typeparam name="TValue">A value type.</typeparam>
-public abstract class StatefulBatchDataLoader<TKey, TValue>
-    : DataLoaderBase<TKey, TValue>
+public abstract class StatefulGroupedDataLoader2<TKey, TValue>
+    : DataLoaderBase2<TKey, TValue[]>
     where TKey : notnull
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="BatchDataLoader{TKey, TValue}"/> class.
+    /// Initializes a new instance of the <see cref="GroupedDataLoader{TKey, TValue}"/> class.
     /// </summary>
     /// <param name="batchScheduler">
     /// A scheduler to tell the <c>DataLoader</c> when to dispatch buffered batches.
     /// </param>
     /// <param name="options">
     /// An options object to configure the behavior of this particular
-    /// <see cref="BatchDataLoader{TKey, TValue}"/>.
+    /// <see cref="GroupedDataLoader{TKey, TValue}"/>.
     /// </param>
     /// <exception cref="ArgumentNullException">
     /// Throws if <paramref name="options"/> is <c>null</c>.
     /// </exception>
-    protected StatefulBatchDataLoader(
+    protected StatefulGroupedDataLoader2(
         IBatchScheduler batchScheduler,
-        DataLoaderOptions options)
+        DataLoaderOptions? options = null)
         : base(batchScheduler, options)
-    {
-        if (options is null)
-        {
-            throw new ArgumentNullException(nameof(options));
-        }
-    }
+    { }
 
     /// <inheritdoc />
     protected internal sealed override async ValueTask FetchAsync(
         IReadOnlyList<TKey> keys,
-        Memory<Result<TValue?>> results,
-        DataLoaderFetchContext<TValue> context,
+        Memory<Result<TValue[]?>> results,
+        DataLoaderFetchContext<TValue[]> context,
         CancellationToken cancellationToken)
     {
         var result =
-            await LoadBatchAsync(keys, context, cancellationToken)
+            await LoadGroupedBatchAsync(keys, context, cancellationToken)
                 .ConfigureAwait(false);
 
         CopyResults(keys, results.Span, result);
@@ -129,33 +114,26 @@ public abstract class StatefulBatchDataLoader<TKey, TValue>
 
     private static void CopyResults(
         IReadOnlyList<TKey> keys,
-        Span<Result<TValue?>> results,
-        IReadOnlyDictionary<TKey, TValue> resultMap)
+        Span<Result<TValue[]?>> results,
+        ILookup<TKey, TValue> resultLookup)
     {
         for (var i = 0; i < keys.Count; i++)
         {
-            if (resultMap.TryGetValue(keys[i], out var value))
-            {
-                results[i] = value;
-            }
-            else
-            {
-                results[i] = null;
-            }
+            results[i] = resultLookup[keys[i]].ToArray();
         }
     }
 
     /// <summary>
-    /// Loads the data for a batch from the data source.
+    /// Loads the data for a grouped batch from the data source.
     /// </summary>
-    /// <param name="context">Represents the immutable fetch context.</param>
     /// <param name="keys">The keys that shall be fetched in a batch.</param>
+    /// <param name="context">Represents the immutable fetch context.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>
-    /// Returns a dictionary holding the fetched data.
+    /// Returns a lookup holding the fetched data.
     /// </returns>
-    protected abstract Task<IReadOnlyDictionary<TKey, TValue>> LoadBatchAsync(
+    protected abstract Task<ILookup<TKey, TValue>> LoadGroupedBatchAsync(
         IReadOnlyList<TKey> keys,
-        DataLoaderFetchContext<TValue> context,
+        DataLoaderFetchContext<TValue[]> context,
         CancellationToken cancellationToken);
 }

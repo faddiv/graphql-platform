@@ -1,11 +1,12 @@
 using System.Buffers;
 using System.Collections.Immutable;
+using GreenDonut;
 using GreenDonutV2.Internals;
 using static GreenDonutV2.NoopDataLoaderDiagnosticEventListener;
 
 namespace GreenDonutV2;
 
-public abstract partial class DataLoaderBase<TKey, TValue>
+public abstract partial class DataLoaderBase2<TKey, TValue>
     : IDataLoader<TKey, TValue>
     where TKey : notnull
 {
@@ -32,11 +33,11 @@ public abstract partial class DataLoaderBase<TKey, TValue>
     /// <exception cref="ArgumentNullException">
     /// Throws if <paramref name="options"/> is <c>null</c>.
     /// </exception>
-    protected DataLoaderBase(IBatchScheduler batchScheduler, DataLoaderOptions? options = null)
+    protected DataLoaderBase2(IBatchScheduler batchScheduler, DataLoaderOptions? options = null)
     {
         options ??= new DataLoaderOptions();
         _diagnosticEvents = options.DiagnosticEvents ?? Default;
-        Cache = options.Cache;
+        Cache = options.Cache as IPromiseCache2 ?? throw new ArgumentException("DataLoaderBase2 needs a cache.");
         _batchScheduler = batchScheduler;
         _maxBatchSize = options.MaxBatchSize;
         CacheKeyType = GetCacheKeyType(GetType());
@@ -45,7 +46,7 @@ public abstract partial class DataLoaderBase<TKey, TValue>
     /// <summary>
     /// Gets access to the cache of this DataLoader.
     /// </summary>
-    protected internal IPromiseCache? Cache { get; }
+    protected internal IPromiseCache2? Cache { get; }
 
     /// <summary>
     /// Gets the cache key type for this DataLoader.
@@ -139,7 +140,7 @@ public abstract partial class DataLoaderBase<TKey, TValue>
     }
 
     /// <inheritdoc />
-    public void Remove(TKey key)
+    public void RemoveCacheEntry(TKey key)
     {
         if (key is null)
         {
@@ -154,7 +155,7 @@ public abstract partial class DataLoaderBase<TKey, TValue>
     }
 
     /// <inheritdoc />
-    public void Set(TKey key, Task<TValue?> value)
+    public void SetCacheEntry(TKey key, Task<TValue?> value)
     {
         if (key == null)
         {
@@ -389,7 +390,7 @@ public abstract partial class DataLoaderBase<TKey, TValue>
                 cancellationToken,
                 out Promise<TValue?>? promise))
             {
-                return promise;
+                return promise.Value;
             }
 
             EnsureBatchExecuted(currentBranch, cancellationToken);

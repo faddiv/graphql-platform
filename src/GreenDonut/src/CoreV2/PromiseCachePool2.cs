@@ -5,12 +5,12 @@ namespace GreenDonutV2;
 /// <summary>
 /// This helper class gives easy access to cache pool factories and the shared cache pool.
 /// </summary>
-public static class PromiseCachePool
+public static class PromiseCachePool2
 {
     /// <summary>
     /// The shared cache pool that is used when no cache was provided through the options.
     /// </summary>
-    public static ObjectPool<PromiseCache> Shared { get; } = Create(2560);
+    public static ObjectPool<PromiseCache2> Shared { get; } = Create(2560);
 
     /// <summary>
     /// Creates an instance of <see cref="DefaultObjectPool{TaskCache}"/>.
@@ -24,9 +24,9 @@ public static class PromiseCachePool
     /// <returns>
     /// Returns the newly created instance of <see cref="DefaultObjectPool{TaskCache}"/>.
     /// </returns>
-    public static ObjectPool<PromiseCache> Create(int cacheSize = 100_000, int? maximumRetained = null)
-        => new DefaultObjectPool<PromiseCache>(
-            new PromiseCachePooledObjectPolicy(cacheSize),
+    public static ObjectPool<PromiseCache2> Create(int cacheSize = 100_000, int? maximumRetained = null)
+        => new DefaultObjectPool<PromiseCache2>(
+            new PromiseCachePooledObjectPolicy2(cacheSize),
             maximumRetained ?? Environment.ProcessorCount * 2);
 
     /// <summary>
@@ -41,6 +41,6 @@ public static class PromiseCachePool
     /// <returns>
     /// Returns the newly created instance of <see cref="DefaultObjectPool{TaskCache}"/>.
     /// </returns>
-    public static ObjectPool<PromiseCache> Create(ObjectPoolProvider provider, int cacheSize = 100_000)
-        => provider.Create(new PromiseCachePooledObjectPolicy(cacheSize));
+    public static ObjectPool<PromiseCache2> Create(ObjectPoolProvider provider, int cacheSize = 100_000)
+        => provider.Create(new PromiseCachePooledObjectPolicy2(cacheSize));
 }

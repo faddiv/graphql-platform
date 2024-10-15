@@ -1,13 +1,15 @@
+using GreenDonut;
+
 namespace GreenDonutV2;
 
 /// <summary>
 /// The <see cref="FetchOnceDataLoader{TValue}"/> fetches a single object and caches it.
 /// </summary>
 /// <typeparam name="TValue">A value type.</typeparam>
-public abstract class FetchOnceDataLoader<TValue>
-    : CacheDataLoader<string, TValue>
+public abstract class FetchOnceDataLoader2<TValue>
+    : CacheDataLoader2<string, TValue>
 {
-    protected FetchOnceDataLoader(DataLoaderOptions options)
+    protected FetchOnceDataLoader2(DataLoaderOptions options)
         : base(options)
     {
         if (options is null)

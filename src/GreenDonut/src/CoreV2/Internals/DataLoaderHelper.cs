@@ -1,3 +1,5 @@
+using GreenDonut;
+
 namespace GreenDonutV2.Internals;
 
 /// <summary>
@@ -23,7 +25,7 @@ public static class DataLoaderHelper
     /// Returns the options of the <see cref="DataLoaderBase{TKey, TValue}"/>.
     /// </returns>
     public static DataLoaderOptions GetOptions<TKey, TValue>(
-        DataLoaderBase<TKey, TValue> dataLoader)
+        DataLoaderBase2<TKey, TValue> dataLoader)
         where TKey : notnull
         => dataLoader.Options;
 
@@ -43,7 +45,7 @@ public static class DataLoaderHelper
     /// Returns the batch scheduler of the <see cref="DataLoaderBase{TKey, TValue}"/>.
     /// </returns>
     public static IBatchScheduler GetBatchScheduler<TKey, TValue>(
-        DataLoaderBase<TKey, TValue> dataLoader)
+        DataLoaderBase2<TKey, TValue> dataLoader)
         where TKey : notnull
         => dataLoader.BatchScheduler;
 
@@ -63,7 +65,7 @@ public static class DataLoaderHelper
     /// Returns the cache key type of the <see cref="DataLoaderBase{TKey, TValue}"/>.
     /// </returns>
     public static string GetCacheKeyType<TKey, TValue>(
-        DataLoaderBase<TKey, TValue> dataLoader)
+        DataLoaderBase2<TKey, TValue> dataLoader)
         where TKey : notnull
         => dataLoader.CacheKeyType;
 
@@ -96,7 +98,7 @@ public static class DataLoaderHelper
     /// Returns the task representing the fetch operation.
     /// </returns>
     public static ValueTask FetchAsync<TKey, TValue>(
-        DataLoaderBase<TKey, TValue> dataLoader,
+        DataLoaderBase2<TKey, TValue> dataLoader,
         IReadOnlyList<TKey> keys,
         Memory<Result<TValue?>> results,
         DataLoaderFetchContext<TValue> context,

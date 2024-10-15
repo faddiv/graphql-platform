@@ -1,7 +1,19 @@
+using GreenDonut;
+
 namespace GreenDonutV2;
 
-public abstract partial class DataLoaderBase<TKey, TValue>
+public abstract partial class DataLoaderBase2<TKey, TValue>
 {
+    void IDataLoader<TKey, TValue>.Set(TKey key, Task<TValue?> value)
+    {
+        SetCacheEntry(key, value);
+    }
+
+    void IDataLoader<TKey, TValue>.Remove(TKey key)
+    {
+        RemoveCacheEntry(key);
+    }
+
     /// <inheritdoc />
     Task<object?> IDataLoader.LoadAsync(
         object key,
@@ -39,18 +51,18 @@ public abstract partial class DataLoaderBase<TKey, TValue>
     }
 
     /// <inheritdoc />
-    void IDataLoader.Remove(object key)
+    void IDataLoader.RemoveCacheEntry(object key)
     {
         if (key is null)
         {
             throw new ArgumentNullException(nameof(key));
         }
 
-        Remove((TKey)key);
+        RemoveCacheEntry((TKey)key);
     }
 
     /// <inheritdoc />
-    void IDataLoader.Set(object key, Task<object?> value)
+    void IDataLoader.SetCacheEntry(object key, Task<object?> value)
     {
         if (key is null)
         {
@@ -62,11 +74,28 @@ public abstract partial class DataLoaderBase<TKey, TValue>
             throw new ArgumentNullException(nameof(value));
         }
 
-        Set((TKey)key, AwaitValue());
+        SetCacheEntry((TKey)key, AwaitValue());
 
         async Task<TValue?> AwaitValue() => (TValue)(await value.ConfigureAwait(false))!;
     }
 
     /// <inheritdoc />
-    public void Clear() => Cache?.Clear();
+    public void ClearCache() => Cache?.Clear();
+
+    void IDataLoader.Set(object key, Task<object?> value)
+    {
+        SetCacheEntry((TKey)key, AwaitValue());
+
+        async Task<TValue?> AwaitValue() => (TValue)(await value.ConfigureAwait(false))!;
+    }
+
+    void IDataLoader.Remove(object key)
+    {
+        RemoveCacheEntry((TKey)key);
+    }
+
+    void IDataLoader.Clear()
+    {
+        ClearCache();
+    }
 }

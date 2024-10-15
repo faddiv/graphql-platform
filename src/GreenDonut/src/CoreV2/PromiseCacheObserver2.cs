@@ -1,9 +1,11 @@
+using GreenDonut;
+
 namespace GreenDonutV2;
 
 /// <summary>
 /// Provides factory methods to create <see cref="IPromiseCacheObserver"/>s.
 /// </summary>
-public static class PromiseCacheObserver
+public static class PromiseCacheObserver2
 {
     /// <summary>
     /// Creates a <see cref="IPromiseCacheObserver"/> that creates lookups.
@@ -29,7 +31,7 @@ public static class PromiseCacheObserver
     /// </exception>
     public static IPromiseCacheObserver Create<TKey, TValue>(
         Func<TValue, TKey> createLookup,
-        DataLoaderBase<TKey, TValue> dataLoader)
+        DataLoaderBase2<TKey, TValue> dataLoader)
         where TKey : notnull
     {
         if (createLookup == null)
@@ -42,7 +44,7 @@ public static class PromiseCacheObserver
             throw new ArgumentNullException(nameof(dataLoader));
         }
 
-        return new PromiseCacheObserver<TKey, TValue>(createLookup, dataLoader.CacheKeyType);
+        return new PromiseCacheObserver2<TKey, TValue>(createLookup, dataLoader.CacheKeyType);
     }
 
     /// <summary>
@@ -72,7 +74,7 @@ public static class PromiseCacheObserver
     /// </exception>
     public static IPromiseCacheObserver Create<TKey, TValue, TObservedValue>(
         Func<TObservedValue, KeyValuePair<TKey, TValue>?> createLookup,
-        DataLoaderBase<TKey, TValue> dataLoader)
+        DataLoaderBase2<TKey, TValue> dataLoader)
         where TKey : notnull
     {
         if (createLookup == null)
@@ -85,51 +87,16 @@ public static class PromiseCacheObserver
             throw new ArgumentNullException(nameof(dataLoader));
         }
 
-        return new PromiseCacheObserver<TKey, TValue, TObservedValue>(createLookup, dataLoader.CacheKeyType);
+        return new PromiseCacheObserver2<TKey, TValue, TObservedValue>(createLookup, dataLoader.CacheKeyType);
     }
 }
 
-/// <summary>
-/// The task cache observer allows to subscribe to a task cache
-/// and create additional lookups for already cached tasks.
-/// </summary>
-/// <typeparam name="TValue">
-/// The type of the cached value.
-/// </typeparam>
-public abstract class PromiseCacheObserver<TValue> : IPromiseCacheObserver
-{
-    private IDisposable? _session;
-    private bool _disposed;
-
-    public virtual void Accept(IPromiseCache cache, string? skipCacheKeyType)
-    {
-        _session?.Dispose();
-        _session = cache.Subscribe<TValue>(OnNext, skipCacheKeyType);
-    }
-
-    /// <summary>
-    /// The method is called when a new task is added to the cache.
-    /// </summary>
-    /// <param name="cache"></param>
-    /// <param name="promise"></param>
-    public abstract void OnNext(IPromiseCache cache, Promise<TValue> promise);
-
-    public void Dispose()
-    {
-        if (!_disposed)
-        {
-            _session?.Dispose();
-            _disposed = true;
-        }
-    }
-}
-
-internal sealed class PromiseCacheObserver<TKey, TValue> : PromiseCacheObserver<TValue> where TKey : notnull
+internal sealed class PromiseCacheObserver2<TKey, TValue> : PromiseCacheObserver<TValue> where TKey : notnull
 {
     private readonly Func<TValue, TKey> _createLookup;
     private readonly string _cacheKeyType;
 
-    internal PromiseCacheObserver(Func<TValue, TKey> createLookup, string cacheKeyType)
+    internal PromiseCacheObserver2(Func<TValue, TKey> createLookup, string cacheKeyType)
     {
         _createLookup = createLookup ?? throw new ArgumentNullException(nameof(createLookup));
         _cacheKeyType = cacheKeyType ?? throw new ArgumentNullException(nameof(cacheKeyType));
@@ -143,14 +110,14 @@ internal sealed class PromiseCacheObserver<TKey, TValue> : PromiseCacheObserver<
     }
 }
 
-internal sealed class PromiseCacheObserver<TKey, TValue, TObservedValue>
+internal sealed class PromiseCacheObserver2<TKey, TValue, TObservedValue>
     : PromiseCacheObserver<TObservedValue>
     where TKey : notnull
 {
     private readonly Func<TObservedValue, KeyValuePair<TKey, TValue>?> _createLookup;
     private readonly string _cacheKeyType;
 
-    internal PromiseCacheObserver(Func<TObservedValue, KeyValuePair<TKey, TValue>?> createLookup, string cacheKeyType)
+    internal PromiseCacheObserver2(Func<TObservedValue, KeyValuePair<TKey, TValue>?> createLookup, string cacheKeyType)
     {
         _createLookup = createLookup ?? throw new ArgumentNullException(nameof(createLookup));
         _cacheKeyType = cacheKeyType ?? throw new ArgumentNullException(nameof(cacheKeyType));
