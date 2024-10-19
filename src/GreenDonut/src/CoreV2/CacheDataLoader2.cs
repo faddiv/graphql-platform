@@ -6,8 +6,8 @@ public abstract class CacheDataLoader2<TKey, TValue>
     : DataLoaderBase2<TKey, TValue>
     where TKey : notnull
 {
-    protected CacheDataLoader2(DataLoaderOptions options)
-        : base(AutoBatchScheduler.Default, CreateLocalOptions(options))
+    protected CacheDataLoader2(DataLoaderOptions2 options)
+        : base(AutoBatchScheduler.Default, options.WithMaxBatchSize(1))
     {
         if (options is null)
         {
@@ -46,21 +46,14 @@ public abstract class CacheDataLoader2<TKey, TValue>
     protected abstract Task<TValue> LoadSingleAsync(
         TKey key,
         CancellationToken cancellationToken);
-
-    private static DataLoaderOptions CreateLocalOptions(DataLoaderOptions options)
-    {
-        var local = options.Copy();
-        local.MaxBatchSize = 1;
-        return local;
-    }
 }
 
 public abstract class StatefulCacheDataLoader2<TKey, TValue>
     : DataLoaderBase2<TKey, TValue>
     where TKey : notnull
 {
-    protected StatefulCacheDataLoader2(DataLoaderOptions options)
-        : base(AutoBatchScheduler.Default, CreateLocalOptions(options))
+    protected StatefulCacheDataLoader2(DataLoaderOptions2 options)
+        : base(AutoBatchScheduler.Default, options.WithMaxBatchSize(1))
     {
         if (options is null)
         {
@@ -100,11 +93,4 @@ public abstract class StatefulCacheDataLoader2<TKey, TValue>
         TKey key,
         DataLoaderFetchContext<TValue> context,
         CancellationToken cancellationToken);
-
-    private static DataLoaderOptions CreateLocalOptions(DataLoaderOptions options)
-    {
-        var local = options.Copy();
-        local.MaxBatchSize = 1;
-        return local;
-    }
 }

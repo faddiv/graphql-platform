@@ -33,11 +33,10 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
     /// <exception cref="ArgumentNullException">
     /// Throws if <paramref name="options"/> is <c>null</c>.
     /// </exception>
-    protected DataLoaderBase2(IBatchScheduler batchScheduler, DataLoaderOptions? options = null)
+    protected DataLoaderBase2(IBatchScheduler batchScheduler, DataLoaderOptions2 options)
     {
-        options ??= new DataLoaderOptions();
         _diagnosticEvents = options.DiagnosticEvents ?? Default;
-        Cache = options.Cache as IPromiseCache2 ?? throw new ArgumentException("DataLoaderBase2 needs a cache.");
+        Cache = options.Cache ?? throw new ArgumentException("DataLoaderBase2 needs a cache.");
         _batchScheduler = batchScheduler;
         _maxBatchSize = options.MaxBatchSize;
         CacheKeyType = GetCacheKeyType(GetType());

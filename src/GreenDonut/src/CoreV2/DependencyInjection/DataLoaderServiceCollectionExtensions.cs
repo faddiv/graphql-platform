@@ -18,7 +18,7 @@ public static class DataLoaderServiceCollectionExtensions
             {
                 var cacheOwner = sp.GetRequiredService<PromiseCacheOwner2>();
 
-                return new DataLoaderOptions
+                return new DataLoaderOptions2
                 {
                     Cache = cacheOwner.Cache,
                     DiagnosticEvents = sp.GetService<IDataLoaderDiagnosticEvents>(),

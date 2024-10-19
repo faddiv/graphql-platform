@@ -4,7 +4,7 @@ namespace GreenDonut.Benchmarks.TestInfrastructure;
 
 public class CustomBatchDataLoader2(
     IBatchScheduler batchScheduler,
-    DataLoaderOptions options)
+    DataLoaderOptions2 options)
     : BatchDataLoader2<string, string>(batchScheduler, options)
 {
     protected override Task<IReadOnlyDictionary<string, string>> LoadBatchAsync(

@@ -34,7 +34,7 @@ public sealed class PromiseCacheOwner2 : IDisposable
     /// <summary>
     /// Gets the rented cache.
     /// </summary>
-    public IPromiseCache Cache => _cache;
+    public IPromiseCache2 Cache => _cache;
 
     /// <summary>
     /// Returns the rented cache back to the <see cref="ObjectPool{TaskCache}"/>.

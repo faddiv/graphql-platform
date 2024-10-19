@@ -9,7 +9,7 @@ namespace GreenDonutV2;
 public abstract class FetchOnceDataLoader2<TValue>
     : CacheDataLoader2<string, TValue>
 {
-    protected FetchOnceDataLoader2(DataLoaderOptions options)
+    protected FetchOnceDataLoader2(DataLoaderOptions2 options)
         : base(options)
     {
         if (options is null)

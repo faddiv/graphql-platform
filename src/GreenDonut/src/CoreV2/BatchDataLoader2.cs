@@ -27,7 +27,7 @@ public abstract class BatchDataLoader2<TKey, TValue>
     /// </exception>
     protected BatchDataLoader2(
         IBatchScheduler batchScheduler,
-        DataLoaderOptions options)
+        DataLoaderOptions2 options)
         : base(batchScheduler, options)
     {
         if (options is null)
@@ -106,7 +106,7 @@ public abstract class StatefulBatchDataLoader<TKey, TValue>
     /// </exception>
     protected StatefulBatchDataLoader(
         IBatchScheduler batchScheduler,
-        DataLoaderOptions options)
+        DataLoaderOptions2 options)
         : base(batchScheduler, options)
     {
         if (options is null)

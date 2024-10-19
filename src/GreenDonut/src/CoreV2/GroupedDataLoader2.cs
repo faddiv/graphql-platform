@@ -27,7 +27,7 @@ public abstract class GroupedDataLoader2<TKey, TValue>
     /// </exception>
     protected GroupedDataLoader2(
         IBatchScheduler batchScheduler,
-        DataLoaderOptions? options = null)
+        DataLoaderOptions2 options)
         : base(batchScheduler, options)
     { }
 
@@ -94,7 +94,7 @@ public abstract class StatefulGroupedDataLoader2<TKey, TValue>
     /// </exception>
     protected StatefulGroupedDataLoader2(
         IBatchScheduler batchScheduler,
-        DataLoaderOptions? options = null)
+        DataLoaderOptions2 options)
         : base(batchScheduler, options)
     { }
 
