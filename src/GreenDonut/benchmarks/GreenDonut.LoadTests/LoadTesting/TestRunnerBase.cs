@@ -1,10 +1,9 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using NBomber;
 
 namespace GreenDonut.LoadTests.LoadTesting;
 
-public class TestRunnerBase(TestRunnerHost root)
+public abstract class TestRunnerBase(TestRunnerHost root)
 {
     private readonly TestRunnerHost _root = root;
     public int Id = root.CreateId();
@@ -52,8 +51,5 @@ public class TestRunnerBase(TestRunnerHost root)
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    protected virtual async Task Process(CancellationToken cancel)
-    {
-        await Task.Delay(100, cancel);
-    }
+    protected abstract Task Process(CancellationToken cancel);
 }

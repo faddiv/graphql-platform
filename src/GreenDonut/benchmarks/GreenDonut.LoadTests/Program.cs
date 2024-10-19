@@ -19,7 +19,8 @@ services.AddDataLoader<CustomBatchDataLoader2>();
 
 var sp = services.BuildServiceProvider();
 
-NBomberTest.RunWithNBomber(sp);
+await Tests.RunWithCustomRunner(sp);
+//NBomberTest.RunWithNBomber(sp);
 
 
 

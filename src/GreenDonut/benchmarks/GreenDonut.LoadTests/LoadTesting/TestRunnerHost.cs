@@ -65,7 +65,7 @@ public class TestRunnerHost
 
     internal async Task Stop()
     {
-        _cancellationTokenSource.Cancel();
+        await _cancellationTokenSource.CancelAsync();
         await Task.WhenAll(_runners);
     }
 

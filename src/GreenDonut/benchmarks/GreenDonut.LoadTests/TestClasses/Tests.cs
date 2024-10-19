@@ -1,11 +1,25 @@
 ﻿using System.Collections.Concurrent;
 using System.Diagnostics;
+using GreenDonut.LoadTests.LoadTesting;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace GreenDonut.LoadTests.TestClasses;
 
 public class Tests
 {
+    public static async Task RunWithCustomRunner(ServiceProvider serviceProvider)
+    {
+        var root = new TestRunnerHost();
+        for (int i = 0; i < 1; i++)
+        {
+            root.StartTestRunner(new CustomTestRunner(root, serviceProvider));
+        }
+
+        await Task.Delay(1000 * 60);
+
+        await root.Stop();
+    }
+
     public static async Task<Result> ExecuteTestWith(
         ServiceProvider serviceProvider,
         string version,

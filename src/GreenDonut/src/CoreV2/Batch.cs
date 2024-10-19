@@ -42,12 +42,6 @@ internal class Batch<TKey> where TKey : notnull
             }
 
             promise = Promise<TValue?>.Create(!allowCachePropagation);
-            if (cancellationToken.CanBeCanceled)
-            {
-                cancellationToken.Register(
-                    static state => ((Promise<TValue>)state!).TryCancel(),
-                    promise);
-            }
 
             _size++;
             _items.Add(key, promise);
