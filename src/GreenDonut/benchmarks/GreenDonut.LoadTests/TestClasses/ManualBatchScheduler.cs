@@ -20,7 +20,7 @@ public class ManualBatchScheduler : IBatchScheduler
         while (_queue.TryDequeue(out var dispatch))
         {
             tasks ??= [];
-            tasks.Add(Task.Run(dispatch));
+            tasks.Add(Task.Run(dispatch, cancel));
         }
         if (tasks is not null)
         {
