@@ -1,4 +1,6 @@
-namespace GreenDonut;
+using GreenDonut;
+
+namespace GreenDonutV2.TestInfrastructure;
 
 internal static class TestHelpers
 {

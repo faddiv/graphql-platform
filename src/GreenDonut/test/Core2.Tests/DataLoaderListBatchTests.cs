@@ -1,8 +1,9 @@
-using GreenDonutV2;
+using GreenDonut;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
+using KeyNotFoundException = GreenDonut.KeyNotFoundException;
 
-namespace GreenDonut;
+namespace GreenDonutV2;
 
 public static class DataLoaderListBatchTests
 {

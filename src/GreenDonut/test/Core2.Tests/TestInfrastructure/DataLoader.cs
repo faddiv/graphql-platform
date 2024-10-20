@@ -1,6 +1,6 @@
-using GreenDonutV2;
+using GreenDonut;
 
-namespace GreenDonut;
+namespace GreenDonutV2.TestInfrastructure;
 
 public class DataLoader<TKey, TValue>(
     FetchDataDelegate<TKey, TValue> fetch,

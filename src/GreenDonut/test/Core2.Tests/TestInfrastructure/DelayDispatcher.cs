@@ -1,4 +1,6 @@
-namespace GreenDonut;
+using GreenDonut;
+
+namespace GreenDonutV2.TestInfrastructure;
 
 public class DelayDispatcher : IBatchScheduler
 {

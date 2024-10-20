@@ -1,7 +1,7 @@
-using GreenDonutV2;
+using GreenDonut;
 using Xunit;
 
-namespace GreenDonut;
+namespace GreenDonutV2;
 
 public static class DataLoaderStateTests
 {

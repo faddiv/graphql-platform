@@ -1,13 +1,14 @@
-using GreenDonutV2;
+using GreenDonut;
+using GreenDonutV2.TestInfrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Snapshooter.Xunit;
 using Xunit;
 using Xunit.Abstractions;
-using static GreenDonut.TestHelpers;
+using static GreenDonutV2.TestInfrastructure.TestHelpers;
 // ReSharper disable CollectionNeverUpdated.Local
 // ReSharper disable InconsistentNaming
 
-namespace GreenDonut;
+namespace GreenDonutV2;
 
 public class DataLoaderTests(ITestOutputHelper output)
 {

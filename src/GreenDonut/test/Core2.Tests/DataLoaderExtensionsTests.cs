@@ -1,9 +1,10 @@
 // ReSharper disable InconsistentNaming
 
-using GreenDonutV2;
+using GreenDonut;
+using GreenDonutV2.TestInfrastructure;
 using Xunit;
 
-namespace GreenDonut;
+namespace GreenDonutV2;
 
 public class DataLoaderExtensionsTests
 {

@@ -1,6 +1,7 @@
+using GreenDonut;
 using Xunit;
 
-namespace GreenDonut;
+namespace GreenDonutV2;
 
 public class DataLoaderOptionsTests
 {

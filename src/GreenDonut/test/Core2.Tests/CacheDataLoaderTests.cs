@@ -1,7 +1,6 @@
-using GreenDonutV2;
 using Xunit;
 
-namespace GreenDonut;
+namespace GreenDonutV2;
 
 public class CacheDataLoaderTests
 {
