@@ -17,11 +17,12 @@ namespace GreenDonutV2;
 /// </param>
 public sealed class PromiseCache2(int size) : IPromiseCache2
 {
-    private const int MinimumSize = 10;
     private readonly ConcurrentDictionary<PromiseCacheKey, IPromise> _promises = new();
     private readonly ConcurrentDictionary<Type, List<Subscription>> _subscriptions = new();
     private readonly ConcurrentStack<IPromise> _promises2 = new();
-    private readonly int _size = Math.Max(size, MinimumSize);
+    private readonly int _size = InternalHelpers.CalculateSize(size);
+    private readonly int _lockThreshold = InternalHelpers.CalculateLockThreshold(size);
+
     private readonly Lock _mutationLock = new();
     private int _usage;
 
@@ -50,20 +51,29 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
             return false;
         }
 
-        lock (_mutationLock)
+        if (_usage >= _lockThreshold)
         {
-            if (_usage >= _size)
+            lock (_mutationLock)
             {
-                return false;
-            }
+                if (_usage >= _size)
+                {
+                    return false;
+                }
 
-            if (_promises.TryAdd(key, promise))
+                if (TryAddNoLockInternal(key, promise))
+                {
+                    return false;
+                }
+            }
+        }
+        else
+        {
+            if (TryAddNoLockInternal(key, promise))
             {
-                Interlocked.Increment(ref _usage);
-                NotifySubscribersOnComplete(promise, key);
                 return false;
             }
         }
+
 
         // ReSharper disable once InconsistentlySynchronizedField
         if (_promises.TryGetValue(key, out entry))
@@ -314,23 +324,43 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
             return false;
         }
 
-        lock (_mutationLock)
+        if (_usage >= _lockThreshold)
         {
-            if (_usage >= _size)
+            lock (_mutationLock)
             {
-                return false;
-            }
+                if (_usage >= _size)
+                {
+                    return false;
+                }
 
-            var promise = createPromise(state);
-            if (!_promises.TryAdd(key, promise))
-            {
-                return false;
+                var promise = createPromise(state);
+                if (TryAddNoLockInternal(key, promise))
+                {
+                    return true;
+                }
             }
-
-            Interlocked.Increment(ref _usage);
-            NotifySubscribersOnComplete(promise, key);
-            return true;
         }
+        else
+        {
+            if (TryAddNoLockInternal(key, createPromise(state)))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool TryAddNoLockInternal<T>(PromiseCacheKey key, Promise<T> promise)
+    {
+        if (!_promises.TryAdd(key, promise))
+        {
+            return false;
+        }
+
+        Interlocked.Increment(ref _usage);
+        NotifySubscribersOnComplete(promise, key);
+        return true;
     }
 
     private void NotifySubscribersOnComplete<TValue>(Promise<TValue> promise, PromiseCacheKey key)
