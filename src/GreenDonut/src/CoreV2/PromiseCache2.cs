@@ -1,6 +1,5 @@
 using System.Buffers;
 using System.Collections.Concurrent;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using GreenDonut;
 using GreenDonutV2.Internals;
@@ -18,12 +17,12 @@ namespace GreenDonutV2;
 /// </param>
 public sealed class PromiseCache2(int size) : IPromiseCache2
 {
-    private const int _minimumSize = 10;
+    private const int MinimumSize = 10;
     private readonly ConcurrentDictionary<PromiseCacheKey, IPromise> _promises = new();
     private readonly ConcurrentDictionary<Type, List<Subscription>> _subscriptions = new();
     private readonly ConcurrentStack<IPromise> _promises2 = new();
-    private readonly int _size = Math.Max(size, _minimumSize);
-    private Lock _mutationLock = new();
+    private readonly int _size = Math.Max(size, MinimumSize);
+    private readonly Lock _mutationLock = new();
     private int _usage;
 
     /// <inheritdoc />
@@ -147,9 +146,9 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
         }
 
         Subscription[]? array = null;
-        Span<Subscription> clone = default;
         try
         {
+            Span<Subscription> clone;
             lock (subscriptions)
             {
                 var count = subscriptions.Count;
@@ -213,26 +212,27 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
                 return;
             }
 
-            Span<Subscription> clone = default;
             Subscription[]? array = null;
             try
             {
+                Span<Subscription> clone;
                 lock (subscriptions)
                 {
                     var count = subscriptions.Count;
-                    if (count == 0)
+                    switch (count)
                     {
-                        return;
-                    }
-                    else if (count > 16)
-                    {
-                        array = ArrayPool<Subscription>.Shared.Rent(count);
-                        clone = array.AsSpan(0, count);
-                    }
-                    else
-                    {
-                        var stack = new StackArray16<Subscription>();
-                        clone = MemoryMarshal.CreateSpan(ref stack.first!, count);
+                        case 0:
+                            return;
+                        case > 16:
+                            array = ArrayPool<Subscription>.Shared.Rent(count);
+                            clone = array.AsSpan(0, count);
+                            break;
+                        default:
+                        {
+                            var stack = new StackArray16<Subscription>();
+                            clone = MemoryMarshal.CreateSpan(ref stack.first!, count);
+                            break;
+                        }
                     }
                     subscriptions.CopyTo(clone);
                 }
@@ -281,6 +281,7 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
             }
         }
 
+        // ReSharper disable once InconsistentlySynchronizedField
         var promisesWithKey = _promises.ToArray();
         foreach (var keyValuePair in promisesWithKey)
         {
@@ -296,6 +297,7 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
     /// <inheritdoc />
     public void Clear()
     {
+        // ReSharper disable once InconsistentlySynchronizedField
         _promises.Clear();
         _promises2.Clear();
         _subscriptions.Clear();
@@ -339,10 +341,9 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
                 "The promise is a clone and cannot be used to register a callback.");
         }
         promise.Task.ContinueWith(
-            (task) =>
+            task =>
             {
-                if (task.IsCompletedSuccessfully
-                    && task.Result is not null)
+                if (task is { IsCompletedSuccessfully: true, Result: not null })
                 {
                     NotifySubscribers(key, promise);
                 }
@@ -350,7 +351,7 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
             TaskContinuationOptions.OnlyOnRanToCompletion);
     }
 
-    internal void NotifySubscribers<T>(in PromiseCacheKey key, in Promise<T> promise)
+    private void NotifySubscribers<T>(in PromiseCacheKey key, in Promise<T> promise)
     {
         if (!_subscriptions.TryGetValue(typeof(T), out var subscriptions))
         {
@@ -359,26 +360,27 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
 
         var clonedPromise = promise.Clone();
 
-        Span<Subscription> clone = default;
         Subscription[]? array = null;
         try
         {
+            Span<Subscription> clone;
             lock (subscriptions)
             {
                 var count = subscriptions.Count;
-                if (count == 0)
+                switch (count)
                 {
-                    return;
-                }
-                else if (count > 16)
-                {
-                    array = ArrayPool<Subscription>.Shared.Rent(count);
-                    clone = array.AsSpan(0, count);
-                }
-                else
-                {
-                    var stack = new StackArray16<Subscription>();
-                    clone = MemoryMarshal.CreateSpan(ref stack.first!, count);
+                    case 0:
+                        return;
+                    case > 16:
+                        array = ArrayPool<Subscription>.Shared.Rent(count);
+                        clone = array.AsSpan(0, count);
+                        break;
+                    default:
+                    {
+                        var stack = new StackArray16<Subscription>();
+                        clone = MemoryMarshal.CreateSpan(ref stack.first!, count);
+                        break;
+                    }
                 }
                 subscriptions.CopyTo(clone);
             }
@@ -398,11 +400,6 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
                 ArrayPool<Subscription>.Shared.Return(array, true);
             }
         }
-    }
-
-    private void IncrementInternal(int value = 1)
-    {
-        Interlocked.Add(ref _usage, value);
     }
 
     private sealed class Subscription<T>(

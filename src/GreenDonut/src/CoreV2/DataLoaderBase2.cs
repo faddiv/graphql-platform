@@ -139,7 +139,6 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
 
     }
 
-    /// <inheritdoc />
     public void RemoveCacheEntry(TKey key)
     {
         if (key is null)
@@ -154,7 +153,6 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
         }
     }
 
-    /// <inheritdoc />
     public void SetCacheEntry(TKey key, Task<TValue?> value)
     {
         if (key == null)
@@ -213,6 +211,17 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
             return newBranch;
         }
     }
+    /// <summary>
+    /// A helper to create a cache key type for a DataLoader.
+    /// </summary>
+    /// <typeparam name="TDataLoader">The DataLoader type.</typeparam>
+    /// <returns>
+    /// Returns the DataLoader cache key.
+    /// </returns>
+    // ReSharper disable once UnusedMember.Global
+    protected static string GetCacheKeyType<TDataLoader>()
+        where TDataLoader : IDataLoader
+        => GetCacheKeyType(typeof(TDataLoader));
 
     /// <summary>
     /// A helper to create a cache key type for a DataLoader.
@@ -223,6 +232,7 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
     /// <returns>
     /// Returns the DataLoader cache key.
     /// </returns>
+    // ReSharper disable once MemberCanBePrivate.Global
     protected static string GetCacheKeyType(Type type)
         => type.FullName ?? type.Name;
 
