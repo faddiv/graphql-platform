@@ -387,7 +387,6 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
             if (currentBranch.TryGetOrCreatePromise(
                 key,
                 AllowCachePropagation,
-                cancellationToken,
                 out Promise<TValue?>? promise))
             {
                 return promise.Value;

@@ -2,7 +2,7 @@ namespace GreenDonutV2;
 
 using System.Diagnostics.CodeAnalysis;
 using GreenDonut;
-using GreenDonutV2.Internals;
+using Internals;
 
 internal class Batch<TKey> where TKey : notnull
 {
@@ -18,7 +18,6 @@ internal class Batch<TKey> where TKey : notnull
     public bool TryGetOrCreatePromise<TValue>(
         TKey key,
         bool allowCachePropagation,
-        CancellationToken cancellationToken,
         [NotNullWhen(true)] out Promise<TValue?>? promise)
     {
         if (!CanAdd())
@@ -44,7 +43,7 @@ internal class Batch<TKey> where TKey : notnull
             promise = Promise<TValue?>.Create(!allowCachePropagation);
 
             _size++;
-            _items.Add(key, promise);
+            _items.Add(key, promise.Value);
             return true;
         }
     }
