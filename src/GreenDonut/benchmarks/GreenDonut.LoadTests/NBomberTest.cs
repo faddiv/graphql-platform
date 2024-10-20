@@ -11,7 +11,7 @@ public static class NBomberTest
     {
         var loadSimulations = Simulation.KeepConstant(
             copies: 10,
-            during: TimeSpan.FromMinutes(3));
+            during: TimeSpan.FromMinutes(10));
         var warmupDuration = TimeSpan.FromSeconds(10);
 
         var scenario1 = Scenario.Create("load_batch original",
@@ -25,7 +25,7 @@ public static class NBomberTest
             .Run();
 
         var scenario2 = Scenario.Create("load_batch vNext",
-                async context => ToResponse(await Tests. ExecuteTestWith(serviceProvider, "vNext", context.ScenarioCancellationToken)))
+                async context => ToResponse(await Tests.ExecuteTestWith(serviceProvider, "vNext", context.ScenarioCancellationToken)))
             .WithLoadSimulations(
                 loadSimulations
             ).WithWarmUpDuration(warmupDuration);
