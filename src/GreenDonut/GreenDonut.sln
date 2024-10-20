@@ -25,6 +25,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GreenDonut.LoadTests", "ben
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GreenDonutV2", "src\CoreV2\GreenDonutV2.csproj", "{A966E03E-BC52-42BF-BF01-E16A7CAB0EB7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GreenDonut2.Tests", "test\Core2.Tests\GreenDonut2.Tests.csproj", "{FDD4C3E7-2DC0-48D5-AABD-DFC4B8B0A36D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -51,6 +53,10 @@ Global
 		{A966E03E-BC52-42BF-BF01-E16A7CAB0EB7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A966E03E-BC52-42BF-BF01-E16A7CAB0EB7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A966E03E-BC52-42BF-BF01-E16A7CAB0EB7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FDD4C3E7-2DC0-48D5-AABD-DFC4B8B0A36D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FDD4C3E7-2DC0-48D5-AABD-DFC4B8B0A36D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FDD4C3E7-2DC0-48D5-AABD-DFC4B8B0A36D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FDD4C3E7-2DC0-48D5-AABD-DFC4B8B0A36D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -61,6 +67,7 @@ Global
 		{225C7733-03CD-4BF8-A407-205AB1482DDE} = {466A6A9B-F73E-4C7F-AAE7-782BF991A47F}
 		{A0868664-F21E-4407-9801-5EDBB013C66F} = {466A6A9B-F73E-4C7F-AAE7-782BF991A47F}
 		{A966E03E-BC52-42BF-BF01-E16A7CAB0EB7} = {251185F7-7E3B-4BB3-B500-56C90564EE8C}
+		{FDD4C3E7-2DC0-48D5-AABD-DFC4B8B0A36D} = {A829F8F0-4468-405C-8A26-3E5921F7324A}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {CC1769AF-BDF5-4EF2-AED8-1719C180F131}

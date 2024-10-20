@@ -21,7 +21,7 @@ public sealed class DataLoaderOptions2
     /// DataLoader will use the default cache implementation.
     /// The default value is set to <c>null</c>.
     /// </summary>
-    public required IPromiseCache2 Cache { get; init; }
+    public IPromiseCache2? Cache { get; init; }
 
     /// <summary>
     /// Gets the <see cref="IDataLoaderDiagnosticEvents"/> to intercept DataLoader events.

@@ -84,6 +84,16 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
 
     void IDataLoader.Set(object key, Task<object?> value)
     {
+        if (key is null)
+        {
+            throw new ArgumentNullException(nameof(key));
+        }
+
+        if (value is null)
+        {
+            throw new ArgumentNullException(nameof(value));
+        }
+
         SetCacheEntry((TKey)key, AwaitValue());
 
         async Task<TValue?> AwaitValue() => (TValue)(await value.ConfigureAwait(false))!;

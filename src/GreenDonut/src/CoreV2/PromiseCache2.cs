@@ -1,6 +1,5 @@
 using System.Buffers;
 using System.Collections.Concurrent;
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using GreenDonut;
@@ -39,18 +38,35 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
         TState state,
         out Promise<T> promise)
     {
+        // ReSharper disable once InconsistentlySynchronizedField
         if (_promises.TryGetValue(key, out var entry))
         {
             promise = entry.As<T>();
             return true;
         }
 
-        if (TryAddInternal(key, createPromise, state, out var p))
+        promise = createPromise(key, state);
+        if (_usage >= _size)
         {
-            promise = p.Value;
             return false;
         }
 
+        lock (_mutationLock)
+        {
+            if (_usage >= _size)
+            {
+                return false;
+            }
+
+            if (_promises.TryAdd(key, promise))
+            {
+                Interlocked.Increment(ref _usage);
+                NotifySubscribersOnComplete(promise, key);
+                return false;
+            }
+        }
+
+        // ReSharper disable once InconsistentlySynchronizedField
         if (_promises.TryGetValue(key, out entry))
         {
             promise = entry.As<T>();
@@ -83,7 +99,7 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
             throw new ArgumentNullException(nameof(promise));
         }
 
-        return TryAddInternal(key, static (_, args) => args, promise, out _);
+        return TryAddInternal(key, static args => args, promise);
     }
 
     /// <inheritdoc />
@@ -99,7 +115,7 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
             throw new ArgumentNullException(nameof(createPromise));
         }
 
-        return TryAddInternal(key, static (_, args) => args(), createPromise, out _);
+        return TryAddInternal(key, static args => args(), createPromise);
     }
 
     /// <inheritdoc />
@@ -288,13 +304,11 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
 
     private bool TryAddInternal<T, TState>(
         PromiseCacheKey key,
-        Func<PromiseCacheKey, TState, Promise<T>> createPromise,
-        TState state,
-        [NotNullWhen(true)]out Promise<T>? promise)
+        Func<TState, Promise<T>> createPromise,
+        TState state)
     {
         if (_usage >= _size)
         {
-            promise = null;
             return false;
         }
 
@@ -302,23 +316,22 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
         {
             if (_usage >= _size)
             {
-                promise = null;
                 return false;
             }
 
-            promise = createPromise(key, state);
-            if (_promises.TryAdd(key, promise))
+            var promise = createPromise(state);
+            if (!_promises.TryAdd(key, promise))
             {
-                Interlocked.Increment(ref _usage);
-                NotifySubscribersOnComplete(promise.Value, key);
-                return true;
+                return false;
             }
-        }
 
-        return false;
+            Interlocked.Increment(ref _usage);
+            NotifySubscribersOnComplete(promise, key);
+            return true;
+        }
     }
 
-    internal void NotifySubscribersOnComplete<TValue>(Promise<TValue> promise, PromiseCacheKey key)
+    private void NotifySubscribersOnComplete<TValue>(Promise<TValue> promise, PromiseCacheKey key)
     {
         if (promise.IsClone)
         {
