@@ -20,7 +20,7 @@ public interface IPromiseCache2 :IPromiseCache
     /// <typeparam name="T">The task type.</typeparam>
     /// <typeparam name="TState">The state type.</typeparam>
     /// <returns>
-    /// Returns true if the promise get fron the cache.
+    /// Returns true if the promise get from the cache.
     /// </returns>
     /// <exception cref="ArgumentNullException">
     /// Throws if <paramref name="key"/> is <c>null</c>.

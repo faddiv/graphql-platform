@@ -162,19 +162,20 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
             lock (subscriptions)
             {
                 var count = subscriptions.Count;
-                if (count == 0)
+                switch (count)
                 {
-                    return;
-                }
-                else if (count > 16)
-                {
-                    array = ArrayPool<Subscription>.Shared.Rent(count);
-                    clone = array.AsSpan(0, count);
-                }
-                else
-                {
-                    var stack = new StackArray16<Subscription>();
-                    clone = MemoryMarshal.CreateSpan(ref stack.first!, count);
+                    case 0:
+                        return;
+                    case > 16:
+                        array = ArrayPool<Subscription>.Shared.Rent(count);
+                        clone = array.AsSpan(0, count);
+                        break;
+                    default:
+                    {
+                        var stack = new StackArray16<Subscription>();
+                        clone = MemoryMarshal.CreateSpan(ref stack.First!, count);
+                        break;
+                    }
                 }
                 subscriptions.CopyTo(clone);
             }
@@ -240,7 +241,7 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
                         default:
                         {
                             var stack = new StackArray16<Subscription>();
-                            clone = MemoryMarshal.CreateSpan(ref stack.first!, count);
+                            clone = MemoryMarshal.CreateSpan(ref stack.First!, count);
                             break;
                         }
                     }
@@ -408,7 +409,7 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
                     default:
                     {
                         var stack = new StackArray16<Subscription>();
-                        clone = MemoryMarshal.CreateSpan(ref stack.first!, count);
+                        clone = MemoryMarshal.CreateSpan(ref stack.First!, count);
                         break;
                     }
                 }
