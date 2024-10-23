@@ -1,6 +1,5 @@
 using System.Buffers;
 using System.Collections.Concurrent;
-using System.Runtime.InteropServices;
 using GreenDonut;
 using GreenDonutV2.Internals;
 
@@ -17,14 +16,15 @@ namespace GreenDonutV2;
 /// </param>
 public sealed class PromiseCache2(int size) : IPromiseCache2
 {
-    private readonly ConcurrentDictionary<PromiseCacheKey, IPromise> _promises = new();
-    private readonly ConcurrentDictionary<Type, List<Subscription>> _subscriptions = new();
+    private readonly ConcurrentDictionary<PromiseCacheKey, Entry> _promises = new();
+    private readonly ConcurrentDictionary<Type, ConcurrentStack<Subscription>> _subscriptions = new();
     private readonly ConcurrentStack<IPromise> _promises2 = new();
     private readonly int _size = InternalHelpers.CalculateSize(size);
     private readonly int _lockThreshold = InternalHelpers.CalculateLockThreshold(size);
 
     private readonly Lock _mutationLock = new();
     private int _usage;
+    private bool _enableSubscriptions;
 
     /// <inheritdoc />
     public int Size => _size;
@@ -41,7 +41,7 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
         // ReSharper disable once InconsistentlySynchronizedField
         if (_promises.TryGetValue(key, out var entry))
         {
-            promise = entry.As<T>();
+            promise = entry.Promise.As<T>();
             return true;
         }
 
@@ -78,7 +78,7 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
         // ReSharper disable once InconsistentlySynchronizedField
         if (_promises.TryGetValue(key, out entry))
         {
-            promise = entry.As<T>();
+            promise = entry.Promise.As<T>();
             return false;
         }
 
@@ -89,7 +89,7 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
     {
         TryGetOrAddPromise(
             key,
-            static (key, p) =>  p(key),
+            static (key, p) => p(key),
             createPromise,
             out var promise);
         return promise.Task;
@@ -147,51 +147,20 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
     {
         var promise = Promise<T>.Create(value, cloned: true);
 
-        _promises2.Push(promise);
         Interlocked.Increment(ref _usage);
+        _promises2.Push(promise);
 
-        if (!_subscriptions.TryGetValue(typeof(T), out var subscriptions))
+        if (!_enableSubscriptions ||
+            !_subscriptions.TryGetValue(typeof(T), out var subscriptions))
         {
             return;
         }
 
-        Subscription[]? array = null;
-        try
+        foreach (var subscription in subscriptions)
         {
-            Span<Subscription> clone;
-            lock (subscriptions)
+            if (subscription is Subscription<T> casted)
             {
-                var count = subscriptions.Count;
-                switch (count)
-                {
-                    case 0:
-                        return;
-                    case > 16:
-                        array = ArrayPool<Subscription>.Shared.Rent(count);
-                        clone = array.AsSpan(0, count);
-                        break;
-                    default:
-                    {
-                        var stack = new StackArray16<Subscription>();
-                        clone = MemoryMarshal.CreateSpan(ref stack.First!, count);
-                        break;
-                    }
-                }
-                subscriptions.CopyTo(clone);
-            }
-            foreach (var subscription in clone)
-            {
-                if (subscription is Subscription<T> casted)
-                {
-                    casted.OnNext(promise);
-                }
-            }
-        }
-        finally
-        {
-            if (array != null)
-            {
-                ArrayPool<Subscription>.Shared.Return(array);
+                casted.OnNext(promise);
             }
         }
     }
@@ -199,7 +168,7 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
     /// <inheritdoc />
     public void PublishMany<T>(ReadOnlySpan<T> values)
     {
-        if(values.Length == 0)
+        if (values.Length == 0 || !_enableSubscriptions)
         {
             return;
         }
@@ -214,8 +183,8 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
                 span[i] = Promise<T>.Create(values[i], cloned: true);
             }
 
-            _promises2.PushRange(buffer, 0, values.Length);
             Interlocked.Add(ref _usage, values.Length);
+            _promises2.PushRange(buffer, 0, values.Length);
 
             // now we notify all subscribers that are interested in the current promise type.
             if (!_subscriptions.TryGetValue(typeof(T), out var subscriptions))
@@ -223,47 +192,16 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
                 return;
             }
 
-            Subscription[]? array = null;
-            try
+            foreach (var subscription in subscriptions)
             {
-                Span<Subscription> clone;
-                lock (subscriptions)
+                if (subscription is not Subscription<T> casted)
                 {
-                    var count = subscriptions.Count;
-                    switch (count)
-                    {
-                        case 0:
-                            return;
-                        case > 16:
-                            array = ArrayPool<Subscription>.Shared.Rent(count);
-                            clone = array.AsSpan(0, count);
-                            break;
-                        default:
-                        {
-                            var stack = new StackArray16<Subscription>();
-                            clone = MemoryMarshal.CreateSpan(ref stack.First!, count);
-                            break;
-                        }
-                    }
-                    subscriptions.CopyTo(clone);
+                    continue;
                 }
 
-                foreach (var subscription in clone)
+                foreach (var item in span)
                 {
-                    if (subscription is Subscription<T> casted)
-                    {
-                        foreach (var item in span)
-                        {
-                            casted.OnNext((Promise<T>)item);
-                        }
-                    }
-                }
-            }
-            finally
-            {
-                if (array is not null)
-                {
-                    ArrayPool<Subscription>.Shared.Return(array, true);
+                    casted.OnNext((Promise<T>)item);
                 }
             }
         }
@@ -276,31 +214,36 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
     /// <inheritdoc />
     public IDisposable Subscribe<T>(Action<IPromiseCache, Promise<T>> next, string? skipCacheKeyType)
     {
+        _enableSubscriptions = true;
         var subscriptions = _subscriptions.GetOrAdd(typeof(T), _ => []);
         var subscription = new Subscription<T>(this, next, skipCacheKeyType);
 
-        //TODO Subscription check in NotifySubscribers little bit expensive. Can it enable only if sometihng subscribe? Is there always a subscriber?
-        lock (subscriptions)
-        {
-            subscriptions.Add(subscription);
-        }
+        subscriptions.Push(subscription);
 
         if (!_promises2.IsEmpty)
         {
-            foreach (var promise in _promises2.OfType<Promise<T>>())
+            foreach (var promise in _promises2)
             {
-                subscription.OnNext(promise);
+                if (promise is Promise<T> casted)
+                {
+                    subscription.OnNext(casted);
+                }
             }
         }
 
-        // ReSharper disable once InconsistentlySynchronizedField
-        var promisesWithKey = _promises.ToArray();
-        foreach (var keyValuePair in promisesWithKey)
+        foreach (var (key, entry) in _promises)
         {
-            if (keyValuePair.Value is Promise<T> promise)
+            if (entry.Promise is not Promise<T> promise)
             {
-                subscription.OnNext(keyValuePair.Key, promise);
+                continue;
             }
+
+            if (subscription.TryOnNext(key, promise))
+            {
+                continue;
+            }
+
+            CreateSubscription(entry, promise, key);
         }
 
         return subscription;
@@ -355,32 +298,56 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
 
     private bool TryAddNoLockInternal<T>(PromiseCacheKey key, Promise<T> promise)
     {
-        if (!_promises.TryAdd(key, promise))
+        Interlocked.Increment(ref _usage);
+        var entry = new Entry { Promise = promise };
+        if (!_promises.TryAdd(key, entry))
         {
+            Interlocked.Decrement(ref _usage);
             return false;
         }
 
-        Interlocked.Increment(ref _usage);
-        NotifySubscribersOnComplete(promise, key);
+        NotifySubscribersOnComplete(entry, promise, key);
         return true;
     }
 
-    private void NotifySubscribersOnComplete<TValue>(Promise<TValue> promise, PromiseCacheKey key)
+    private void NotifySubscribersOnComplete<TValue>(Entry entry, Promise<TValue> promise, PromiseCacheKey key)
     {
         if (promise.IsClone)
         {
             throw new InvalidCastException(
                 "The promise is a clone and cannot be used to register a callback.");
         }
-        promise.Task.ContinueWith(
-            task =>
+
+        if (!_enableSubscriptions)
+        {
+            return;
+        }
+
+        CreateSubscription(entry, promise, key);
+    }
+
+    private void CreateSubscription<TValue>(Entry entry, Promise<TValue> promise, PromiseCacheKey key)
+    {
+        lock (entry)
+        {
+            if (entry.SubscriptionHandler is not null)
+            {
+                return;
+            }
+
+            void ContinuationFunction(Task<TValue> task)
             {
                 if (task is { IsCompletedSuccessfully: true, Result: not null })
                 {
                     NotifySubscribers(key, promise);
                 }
-            },
-            TaskContinuationOptions.OnlyOnRanToCompletion);
+            }
+
+            var c = ContinuationFunction;
+
+            entry.SubscriptionHandler = c;
+            promise.Task.ContinueWith(c, TaskContinuationOptions.OnlyOnRanToCompletion);
+        }
     }
 
     private void NotifySubscribers<T>(in PromiseCacheKey key, in Promise<T> promise)
@@ -392,44 +359,11 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
 
         var clonedPromise = promise.Clone();
 
-        Subscription[]? array = null;
-        try
+        foreach (var subscription in subscriptions)
         {
-            Span<Subscription> clone;
-            lock (subscriptions)
+            if (subscription is Subscription<T> casted)
             {
-                var count = subscriptions.Count;
-                switch (count)
-                {
-                    case 0:
-                        return;
-                    case > 16:
-                        array = ArrayPool<Subscription>.Shared.Rent(count);
-                        clone = array.AsSpan(0, count);
-                        break;
-                    default:
-                    {
-                        var stack = new StackArray16<Subscription>();
-                        clone = MemoryMarshal.CreateSpan(ref stack.First!, count);
-                        break;
-                    }
-                }
-                subscriptions.CopyTo(clone);
-            }
-
-            foreach (var subscription in clone)
-            {
-                if (subscription is Subscription<T> casted)
-                {
-                    casted.OnNext(key, clonedPromise);
-                }
-            }
-        }
-        finally
-        {
-            if (array is not null)
-            {
-                ArrayPool<Subscription>.Shared.Return(array, true);
+                casted.TryOnNext(key, clonedPromise);
             }
         }
     }
@@ -439,58 +373,56 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
         Action<IPromiseCache, Promise<T>> next,
         string? skipCacheKeyType) : Subscription
     {
-        public void OnNext(PromiseCacheKey key, Promise<T> promise)
+        public bool TryOnNext(PromiseCacheKey key, Promise<T> promise)
         {
-            if (promise.Task.IsCompletedSuccessfully &&
+            if (Disposed)
+            {
+                return true;
+            }
+
+            if (promise.Task is { IsCompletedSuccessfully: true, Result: not null } &&
                 skipCacheKeyType?.Equals(key.Type, StringComparison.Ordinal) != true)
             {
                 next(owner, promise);
+                return true;
             }
+
+            return false;
         }
 
         public void OnNext(Promise<T> promise)
         {
+            if (Disposed)
+            {
+                return;
+            }
+
             if (promise.Task.IsCompletedSuccessfully)
             {
                 next(owner, promise);
             }
-        }
-
-        protected override void Unsubscribe()
-        {
-            owner.Unsubscribe(this);
         }
     }
 
     private abstract class Subscription
         : IDisposable
     {
-        private bool _disposed;
+        protected bool Disposed { get; private set; }
 
         public void Dispose()
         {
-            if (_disposed)
+            if (Disposed)
             {
                 return;
             }
 
-            Unsubscribe();
-
-
-            _disposed = true;
+            Disposed = true;
         }
-
-        protected abstract void Unsubscribe();
     }
 
-    private void Unsubscribe<T>(Subscription<T> subscription)
+    private class Entry
     {
-        if (_subscriptions.TryGetValue(typeof(T), out var subscriptions))
-        {
-            lock (subscriptions)
-            {
-                subscriptions.Remove(subscription);
-            }
-        }
+        public required IPromise Promise { get; init; }
+        public object? SubscriptionHandler { get; set; }
     }
 }
