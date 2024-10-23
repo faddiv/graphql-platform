@@ -279,6 +279,7 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
         var subscriptions = _subscriptions.GetOrAdd(typeof(T), _ => []);
         var subscription = new Subscription<T>(this, next, skipCacheKeyType);
 
+        //TODO Subscription check in NotifySubscribers little bit expensive. Can it enable only if sometihng subscribe? Is there always a subscriber?
         lock (subscriptions)
         {
             subscriptions.Add(subscription);
