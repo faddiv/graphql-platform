@@ -7,7 +7,8 @@ using static GreenDonutV2.NoopDataLoaderDiagnosticEventListener;
 namespace GreenDonutV2;
 
 public abstract partial class DataLoaderBase2<TKey, TValue>
-    : IDataLoader<TKey, TValue>, IDataLoaderNext
+    : IDataLoader<TKey, TValue>,
+        IDataLoaderNext
     where TKey : notnull
 {
     private readonly IDataLoaderDiagnosticEvents _diagnosticEvents;
@@ -18,6 +19,7 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
 
     private ImmutableDictionary<string, IDataLoader> _branches =
         ImmutableDictionary<string, IDataLoader>.Empty;
+
     private readonly Lock _branchesLock = new();
 
     /// <summary>
@@ -81,12 +83,7 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
     /// Gets the options of this DataLoader.
     /// </summary>
     protected internal DataLoaderOptions Options
-        => new()
-        {
-            MaxBatchSize = _maxBatchSize,
-            Cache = Cache,
-            DiagnosticEvents = _diagnosticEvents,
-        };
+        => new() { MaxBatchSize = _maxBatchSize, Cache = Cache, DiagnosticEvents = _diagnosticEvents, };
 
     /// <inheritdoc />
     public Task<TValue?> LoadAsync(TKey key, CancellationToken cancellationToken = default)
@@ -114,7 +111,7 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
             throw new ArgumentNullException(nameof(keys));
         }
 
-        if(keys.Count == 0)
+        if (keys.Count == 0)
         {
             return Task.FromResult<IReadOnlyList<TValue?>>([]);
         }
@@ -136,7 +133,6 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
 
         static async Task<IReadOnlyList<TValue?>> WhenAll(Task<TValue?>[] tasks)
             => await Task.WhenAll(tasks).ConfigureAwait(false);
-
     }
 
     public void RemoveCacheEntry(TKey key)
@@ -211,6 +207,7 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
             return newBranch;
         }
     }
+
     /// <summary>
     /// A helper to create a cache key type for a DataLoader.
     /// </summary>
@@ -261,7 +258,7 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
 
     private void EnsureBatchExecuted(Batch<TKey>? batch, CancellationToken cancellationToken)
     {
-        if(batch?.NeedsScheduling() ?? false)
+        if (batch?.NeedsScheduling() ?? false)
         {
             ExecuteBatchInternal(batch, cancellationToken);
         }
@@ -330,7 +327,10 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
         }
     }
 
-    private void BatchOperationSucceeded(Batch<TKey> batch, IReadOnlyList<TKey> keys, ReadOnlySpan<Result<TValue?>> results)
+    private void BatchOperationSucceeded(
+        Batch<TKey> batch,
+        IReadOnlyList<TKey> keys,
+        ReadOnlySpan<Result<TValue?>> results)
     {
         for (var i = 0; i < keys.Count; i++)
         {
@@ -348,6 +348,7 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
 
             SetSingleResult(batch.GetPromise<TValue?>(key), key, value);
         }
+
         _diagnosticEvents.BatchResults(keys, results);
     }
 
@@ -371,10 +372,11 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
         var cacheKey = new PromiseCacheKey(CacheKeyType, key);
 
         Promise<TValue?> promise;
-        if(Cache is null)
+        if (Cache is null)
         {
             promise = CreatePromiseFromBatch(key, cancellationToken);
-        } else
+        }
+        else
         {
             if (Cache.TryGetOrAddPromise(cacheKey,
                 static (_, state) => state.@this.CreatePromiseFromBatch(state.key, state.cancellationToken),

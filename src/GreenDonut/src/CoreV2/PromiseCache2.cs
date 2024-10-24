@@ -88,7 +88,7 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
     {
         TryGetOrAddPromise(
             key,
-            static (key, p) =>  p(key),
+            static (key, p) => p(key),
             createPromise,
             out var promise);
         return promise.Task;
@@ -166,7 +166,7 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
     /// <inheritdoc />
     public void PublishMany<T>(ReadOnlySpan<T> values)
     {
-        if(values.Length == 0)
+        if (values.Length == 0)
         {
             return;
         }
@@ -213,7 +213,7 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
         var subscriptions = _subscriptions.GetOrAdd(typeof(T), _ => []);
         var subscription = new Subscription<T>(this, next, skipCacheKeyType);
 
-        //TODO Subscription check in NotifySubscribers little bit expensive. Can it enable only if sometihng subscribe? Is there always a subscriber?
+        //TODO Subscription check in NotifySubscribers little bit expensive. Can it enable only if something subscribe? Is there always a subscriber?
         lock (subscriptions)
         {
             subscriptions.Push(subscription);
@@ -304,10 +304,11 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
             throw new InvalidCastException(
                 "The promise is a clone and cannot be used to register a callback.");
         }
+
         promise.Task.ContinueWith(static (_, o) =>
             {
                 var (owner, key, promise) = ((PromiseCache2, PromiseCacheKey, Promise<TValue>))o!;
-                    owner.NotifySubscribers(key, promise);
+                owner.NotifySubscribers(key, promise);
             }, (this, key, promise),
             TaskContinuationOptions.OnlyOnRanToCompletion);
     }
@@ -342,7 +343,7 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
     {
         public void OnNext(PromiseCacheKey key, Promise<T> promise)
         {
-            if(Disposed)
+            if (Disposed)
             {
                 return;
             }
@@ -356,7 +357,7 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
 
         public void OnNext(Promise<T> promise)
         {
-            if(Disposed)
+            if (Disposed)
             {
                 return;
             }

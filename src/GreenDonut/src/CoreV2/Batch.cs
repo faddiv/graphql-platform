@@ -55,7 +55,7 @@ internal class Batch<TKey> where TKey : notnull
             return false;
         }
 
-        if(_size == 0)
+        if (_size == 0)
         {
             return false;
         }
@@ -67,7 +67,7 @@ internal class Batch<TKey> where TKey : notnull
                 return false;
             }
 
-            if(_size == 0)
+            if (_size == 0)
             {
                 return false;
             }
