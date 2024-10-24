@@ -1,4 +1,5 @@
-﻿using GreenDonut.LoadTests.LoadTesting;
+﻿using GreenDonut.Benchmarks;
+using GreenDonut.LoadTests.LoadTesting;
 using GreenDonut.LoadTests.TestClasses;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -8,8 +9,8 @@ public class CustomTestRunner(TestRunnerHost root, ServiceProvider serviceProvid
 {
     private readonly ServiceProvider _serviceProvider = serviceProvider;
 
-    protected override Task Process(CancellationToken cancel)
+    protected override Task<Result> Process(CancellationToken cancel)
     {
-        return Tests.ExecuteTestWith(_serviceProvider, "vNext", cancel);
+        return Tests.ExecuteTestWith(_serviceProvider, Defaults.Version, cancel);
     }
 }

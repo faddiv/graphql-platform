@@ -17,7 +17,7 @@ public class MultiThreadBenchmarks
     private ServiceProvider _sp = null!;
 
     // ReSharper disable once MemberCanBePrivate.Global
-    [Params("Original", "vNext")]
+    [Params(Defaults.Version)]
     public string Version { get; set; } = "Original";
 
     [GlobalSetup]

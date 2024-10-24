@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using GreenDonut.LoadTests.TestClasses;
 
 namespace GreenDonut.LoadTests.LoadTesting;
 
@@ -22,14 +23,14 @@ public abstract class TestRunnerBase(TestRunnerHost root)
                 var time = Stopwatch.GetTimestamp();
                 try
                 {
-                    await Process(linkedCts.Token);
+                    var result = await Process(linkedCts.Token);
                     var duration = Stopwatch.GetElapsedTime(time);
 
                     _root.Results.Add(new Results
                     {
                         Id = Id,
                         Duration = duration.Ticks,
-                        Success = true
+                        Success = result.StatusCode == 200
                     }, cancel);
                 }
                 catch (OperationCanceledException)
@@ -51,5 +52,5 @@ public abstract class TestRunnerBase(TestRunnerHost root)
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    protected abstract Task Process(CancellationToken cancel);
+    protected abstract Task<Result> Process(CancellationToken cancel);
 }

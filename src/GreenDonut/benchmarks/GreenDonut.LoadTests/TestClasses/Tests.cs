@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.Diagnostics;
+using GreenDonut.Benchmarks;
 using GreenDonut.LoadTests.LoadTesting;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -92,7 +93,7 @@ public class Tests
 
         if (runs.All(success => success))
         {
-            return new Result(200);
+            return Result.Ok;
         }
         else
         {
@@ -102,10 +103,13 @@ public class Tests
 
     private static IDataLoader<string, string> ProvideDataLoader(IServiceScope sc, string version)
     {
-        return version == "Original"
+        return version == Defaults.Original
             ? sc.ServiceProvider.GetRequiredService<CustomBatchDataLoader>()
             : sc.ServiceProvider.GetRequiredService<CustomBatchDataLoader2>();
     }
 }
 
-public record Result(int StatusCode, string? Message = null);
+public record Result(int StatusCode, string? Message = null)
+{
+    public static Result Ok { get; } = new(200);
+}

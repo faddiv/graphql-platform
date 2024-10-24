@@ -34,6 +34,10 @@ public class TestRunnerHost
         try
         {
             var collect = new List<Results>(1024);
+            var durationSum = 0L;
+            var durationCount = 0L;
+            var pauseSum = 0L;
+            var pauseCount = 0L;
             while (!_cancellationTokenSource.IsCancellationRequested)
             {
                 var time = Stopwatch.GetTimestamp();
@@ -45,16 +49,17 @@ public class TestRunnerHost
                 }
 
                 var memory = GC.GetGCMemoryInfo();
-                var durationAvg = TimeSpan.FromTicks(collect.LongAverage(e => e.Duration));
-                var pauseAvg = memory.PauseDurations.DurationAverage(e => e);
-                Console.Write($"Duration: {durationAvg} PauseTimePercentage: {memory.PauseTimePercentage} PauseAvg: {pauseAvg}");
-                var genIndex = 0;
-                foreach (var gen in memory.GenerationInfo)
-                {
-                    Console.Write($" Get{genIndex}: {gen.SizeAfterBytes}");
-                    genIndex++;
-                }
-                Console.WriteLine();
+                var duration = collect.LongAverage(e => e.Duration);
+                durationSum += duration;
+                durationCount++;
+                var pause = memory.PauseDurations.DurationAverage(e => e);
+                var durationAvg = TimeSpan.FromTicks(durationSum/durationCount);
+                pauseSum += pause.Ticks;
+                pauseCount++;
+                var pauseAvg = TimeSpan.FromTicks(pauseSum/pauseCount);
+                Console.WriteLine($"Duration: {TimeSpan.FromTicks(duration)} Pause: {pause}" +
+                    $" DurationAvg:{durationAvg} PauseAvg: {pauseAvg}");
+
                 collect.Clear();
             }
         }
