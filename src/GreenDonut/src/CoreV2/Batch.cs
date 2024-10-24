@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace GreenDonutV2;
 
 using System.Diagnostics.CodeAnalysis;
@@ -60,22 +62,11 @@ internal class Batch<TKey> where TKey : notnull
             return false;
         }
 
-        lock (_lock)
-        {
-            if (_status != BatchStatus.Open)
-            {
-                return false;
-            }
-
-            if (_size == 0)
-            {
-                return false;
-            }
-
-            _status = BatchStatus.Scheduled;
-
-            return true;
-        }
+        var original = (BatchStatus)Interlocked.CompareExchange(
+            ref Unsafe.As<BatchStatus, int>(ref _status),
+            (int)BatchStatus.Scheduled,
+            (int)BatchStatus.Open);
+        return original == BatchStatus.Open;
     }
 
     public Promise<TValue> GetPromise<TValue>(TKey key)
