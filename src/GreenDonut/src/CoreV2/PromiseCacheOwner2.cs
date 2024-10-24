@@ -41,10 +41,12 @@ public sealed class PromiseCacheOwner2 : IDisposable
     /// </summary>
     public void Dispose()
     {
-        if (!_disposed)
+        if (_disposed)
         {
-            _pool.Return(_cache);
-            _disposed = true;
+            return;
         }
+
+        _pool.Return(_cache);
+        _disposed = true;
     }
 }
