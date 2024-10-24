@@ -11,25 +11,73 @@ namespace GreenDonutV2;
 /// <remarks>
 /// Creates a new instance of <see cref="PromiseCache2"/>.
 /// </remarks>
-/// <param name="size">
-/// The size of the cache. The minimum cache size is 10.
-/// </param>
-public sealed class PromiseCache2(int size) : IPromiseCache2
+public sealed class PromiseCache2 : IPromiseCache2
 {
     private readonly ConcurrentDictionary<PromiseCacheKey, IPromise> _promises = new();
     private readonly ConcurrentDictionary<Type, ConcurrentStack<Subscription>> _subscriptions = new();
     private readonly ConcurrentStack<IPromise> _promises2 = new();
-    private readonly int _size = InternalHelpers.CalculateSize(size);
-    private readonly int _lockThreshold = InternalHelpers.CalculateLockThreshold(size);
+    private readonly int _size;
+    private readonly int _lockThreshold;
 
+    private BlockingCollection<PromiseEvent>? _promiseEvents;
+    private Thread? _eventLoop;
     private readonly Lock _mutationLock = new();
     private int _usage;
+
+    /// <summary>
+    /// A memorization cache for <c>DataLoader</c>.
+    /// </summary>
+    /// <remarks>
+    /// Creates a new instance of <see cref="PromiseCache2"/>.
+    /// </remarks>
+    /// <param name="size">
+    /// The size of the cache. The minimum cache size is 10.
+    /// </param>
+    public PromiseCache2(int size)
+    {
+        _size = InternalHelpers.CalculateSize(size);
+        _lockThreshold = InternalHelpers.CalculateLockThreshold(size);
+        StartEventLoop();
+    }
 
     /// <inheritdoc />
     public int Size => _size;
 
     /// <inheritdoc />
     public int Usage => _usage;
+
+    private void StartEventLoop()
+    {
+        if (_eventLoop is not null)
+        {
+            return;
+        }
+
+        _promiseEvents = new BlockingCollection<PromiseEvent>();
+
+        _eventLoop = new Thread(static state =>
+        {
+            var owner = (PromiseCache2)state!;
+            var promiseEvents = owner._promiseEvents;
+            if (promiseEvents is null)
+            {
+                return;
+            }
+
+            try
+            {
+                foreach (var promiseEvent in promiseEvents.GetConsumingEnumerable())
+                {
+                    promiseEvent.NotifySubscribers(owner);
+                }
+            }
+            catch (ObjectDisposedException)
+            {
+                // ignore
+            }
+        });
+        _eventLoop.Start(this);
+    }
 
     public bool TryGetOrAddPromise<T, TState>(
         PromiseCacheKey key,
@@ -82,6 +130,11 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
         }
 
         throw new InvalidOperationException($"Could not get or add Promise with key: {key}");
+    }
+
+    public void NotifySubscribers<TValue>(PromiseCacheKey promiseCacheKey)
+    {
+        _promiseEvents?.Add(new PromiseEvent<TValue>(promiseCacheKey));
     }
 
     public Task<T> GetOrAddTask<T>(PromiseCacheKey key, Func<PromiseCacheKey, Promise<T>> createPromise)
@@ -241,10 +294,11 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
     /// <inheritdoc />
     public void Clear()
     {
-        // ReSharper disable once InconsistentlySynchronizedField
         _promises.Clear();
         _promises2.Clear();
         _subscriptions.Clear();
+        /*_promiseEvents = null;
+        _eventLoop = null;*/
         _usage = 0;
     }
 
@@ -293,28 +347,17 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
         }
 
         Interlocked.Increment(ref _usage);
-        NotifySubscribersOnComplete(promise, key);
         return true;
     }
 
-    private void NotifySubscribersOnComplete<TValue>(Promise<TValue> promise, PromiseCacheKey key)
+    private void ExecuteNotifySubscribers<T>(in PromiseCacheKey key)
     {
-        if (promise.IsClone)
+        if (!_promises.TryGetValue(key, out var untypedPromise) ||
+            untypedPromise is not Promise<T> promise)
         {
-            throw new InvalidCastException(
-                "The promise is a clone and cannot be used to register a callback.");
+            return;
         }
 
-        promise.Task.ContinueWith(static (_, o) =>
-            {
-                var (owner, key, promise) = ((PromiseCache2, PromiseCacheKey, Promise<TValue>))o!;
-                owner.NotifySubscribers(key, promise);
-            }, (this, key, promise),
-            TaskContinuationOptions.OnlyOnRanToCompletion);
-    }
-
-    private void NotifySubscribers<T>(in PromiseCacheKey key, in Promise<T> promise)
-    {
         if (promise.Task is not { IsCompletedSuccessfully: true, Result: not null })
         {
             return;
@@ -383,5 +426,19 @@ public sealed class PromiseCache2(int size) : IPromiseCache2
 
             Disposed = true;
         }
+    }
+
+    private sealed class PromiseEvent<T>(
+        PromiseCacheKey key) : PromiseEvent
+    {
+        public override void NotifySubscribers(PromiseCache2 owner)
+        {
+            owner.ExecuteNotifySubscribers<T>(key);
+        }
+    }
+
+    private abstract class PromiseEvent
+    {
+        public abstract void NotifySubscribers(PromiseCache2 owner);
     }
 }

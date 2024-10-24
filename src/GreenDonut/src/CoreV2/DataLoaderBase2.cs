@@ -357,6 +357,7 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
         if (result.Kind is ResultKind.Value)
         {
             promise.TrySetResult(result);
+            Cache?.NotifySubscribers<TValue>(new PromiseCacheKey(CacheKeyType, key));
         }
         else
         {

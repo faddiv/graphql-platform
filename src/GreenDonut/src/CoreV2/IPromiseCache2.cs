@@ -33,4 +33,6 @@ public interface IPromiseCache2 :IPromiseCache
         Func<PromiseCacheKey, TState, Promise<T>> createPromise,
         TState state,
         out Promise<T> promise);
+
+    void NotifySubscribers<TValue>(PromiseCacheKey promiseCacheKey);
 }
