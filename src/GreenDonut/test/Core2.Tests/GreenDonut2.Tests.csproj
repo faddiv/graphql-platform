@@ -3,6 +3,7 @@
   <PropertyGroup>
     <AssemblyName>GreenDonutV2.Tests</AssemblyName>
     <RootNamespace>GreenDonutV2</RootNamespace>
+    <TargetFramework>net8.0</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>

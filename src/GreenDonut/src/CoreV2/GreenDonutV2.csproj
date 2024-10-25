@@ -4,6 +4,7 @@
     <PackageId>GreenDonutV2</PackageId>
     <AssemblyName>GreenDonutV2</AssemblyName>
     <RootNamespace>GreenDonutV2</RootNamespace>
+    <TargetFramework>net8.0</TargetFramework>
     <Description>GreenDonut is a port of facebook's DataLoader utility, written in C# for .NET Core and .NET Framework.</Description>
   </PropertyGroup>
 
