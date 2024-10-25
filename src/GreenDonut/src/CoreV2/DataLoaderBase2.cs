@@ -379,10 +379,14 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
         else
         {
             if (Cache.TryGetOrAddPromise(cacheKey,
-                static (_, state) => state.@this.CreatePromiseFromBatch(state.key, state.cancellationToken),
-                (@this: this, key, cancellationToken), out promise))
+                static (_, _) => Promise<TValue?>.Create(),
+                (object?)null, out promise))
             {
                 _diagnosticEvents.ResolvedTaskFromCache(this, cacheKey, promise.Task);
+            }
+            else
+            {
+                AddPromiseToBatch(key, promise, cancellationToken);
             }
         }
 
@@ -399,9 +403,30 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
             if (currentBranch.TryGetOrCreatePromise(
                 key,
                 AllowCachePropagation,
-                out Promise<TValue?>? promise))
+                out Promise<TValue?> promise))
             {
-                return promise.Value;
+                return promise;
+            }
+
+            EnsureBatchExecuted(currentBranch, cancellationToken);
+            currentBranch = CreateNewBatch(currentBranch);
+        }
+    }
+
+    private void AddPromiseToBatch(
+        TKey key,
+        Promise<TValue?> promise,
+        CancellationToken cancellationToken)
+    {
+        IPromise ipromise = promise;
+        var currentBranch = _currentBatch ?? CreateNewBatch(null);
+        while (true)
+        {
+            if (currentBranch.TryAddPromise(
+                key,
+                ipromise))
+            {
+                return;
             }
 
             EnsureBatchExecuted(currentBranch, cancellationToken);

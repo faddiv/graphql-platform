@@ -20,11 +20,11 @@ internal class Batch<TKey> where TKey : notnull
     public bool TryGetOrCreatePromise<TValue>(
         TKey key,
         bool allowCachePropagation,
-        [NotNullWhen(true)] out Promise<TValue?>? promise)
+        out Promise<TValue?> promise)
     {
         if (!CanAdd())
         {
-            promise = null;
+            promise = default;
             return false;
         }
 
@@ -32,7 +32,7 @@ internal class Batch<TKey> where TKey : notnull
         {
             if (!CanAdd())
             {
-                promise = null;
+                promise = default;
                 return false;
             }
 
@@ -45,7 +45,7 @@ internal class Batch<TKey> where TKey : notnull
             promise = Promise<TValue?>.Create(!allowCachePropagation);
 
             _size++;
-            _items.Add(key, promise.Value);
+            _items.Add(key, promise);
             return true;
         }
     }
@@ -101,5 +101,30 @@ internal class Batch<TKey> where TKey : notnull
         }
 
         return true;
+    }
+
+    public bool TryAddPromise(TKey key, IPromise promise)
+    {
+        if (!CanAdd())
+        {
+            return false;
+        }
+
+        lock (_lock)
+        {
+            if (!CanAdd())
+            {
+                return false;
+            }
+
+            // ReSharper disable once InvertIf
+            if (_items.TryAdd(key, promise))
+            {
+                _size++;
+                return true;
+            }
+        }
+
+        return false;
     }
 }
