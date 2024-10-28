@@ -6,12 +6,12 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace GreenDonut.LoadTests.TestClasses;
 
-public class Tests
+public static class Tests
 {
     public static async Task RunWithCustomRunner(ServiceProvider serviceProvider)
     {
         var root = new TestRunnerHost();
-        for (int i = 0; i < 1; i++)
+        for (var i = 0; i < 1; i++)
         {
             root.StartTestRunner(new CustomTestRunner(root, serviceProvider));
         }
@@ -34,7 +34,7 @@ public class Tests
         const int count = 100;
         var tasks = new Task[count];
         var runs = new ConcurrentStack<bool>();
-        int countRuns = 0;
+        var countRuns = 0;
         for (var i = 0; i < count; i++)
         {
             var index = i;
@@ -48,8 +48,7 @@ public class Tests
                     var task =  dataLoader.LoadAsync(key, ct);
                     Interlocked.Increment(ref countRuns);
                     var result = await task;
-                    if (result != null &&
-                        result.StartsWith("Value:") &&
+                    if (result?.StartsWith("Value:") == true &&
                         result.EndsWith(key))
                     {
                         runs.Push(true);

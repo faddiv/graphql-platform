@@ -6,16 +6,12 @@ namespace GreenDonut.LoadTests.LoadTesting;
 
 public class TestRunnerHost
 {
-    private readonly CancellationTokenSource _cancellationTokenSource;
+    private readonly CancellationTokenSource _cancellationTokenSource = new();
     private int _id;
-    private readonly List<Task> _runners = new List<Task>();
-    private Task? _collector = null;
+    private readonly List<Task> _runners = [];
+    private Task? _collector;
 
-    public TestRunnerHost()
-    {
-        _cancellationTokenSource = new CancellationTokenSource();
-    }
-    public BlockingCollection<Results> Results { get; } = new BlockingCollection<Results>();
+    public BlockingCollection<Results> Results { get; } = new();
 
     public CancellationToken CancellationToken => _cancellationTokenSource.Token;
 
@@ -23,7 +19,7 @@ public class TestRunnerHost
     {
         if (_collector is null)
         {
-            _collector = Task.Run(CollectorProcess);
+            _collector = Task.Run(CollectorProcess, CancellationToken);
             _runners.Add(_collector);
         }
         _runners.Add(tester.Run());
@@ -38,6 +34,8 @@ public class TestRunnerHost
             var durationCount = 0L;
             var pauseSum = 0L;
             var pauseCount = 0L;
+            var successSum = 0L;
+            var sumCount = 0L;
             while (!_cancellationTokenSource.IsCancellationRequested)
             {
                 var time = Stopwatch.GetTimestamp();
@@ -50,6 +48,8 @@ public class TestRunnerHost
 
                 var memory = GC.GetGCMemoryInfo();
                 var duration = collect.LongAverage(e => e.Duration);
+                successSum += collect.Count(e => e.Success);
+                sumCount += collect.Count;
                 durationSum += duration;
                 durationCount++;
                 var pause = memory.PauseDurations.DurationAverage(e => e);
@@ -58,7 +58,7 @@ public class TestRunnerHost
                 pauseCount++;
                 var pauseAvg = TimeSpan.FromTicks(pauseSum/pauseCount);
                 Console.WriteLine($"Duration: {TimeSpan.FromTicks(duration)} Pause: {pause}" +
-                    $" DurationAvg:{durationAvg} PauseAvg: {pauseAvg}");
+                    $" DurationAvg:{durationAvg} PauseAvg: {pauseAvg} SuccessRate: {(double)successSum/sumCount:P}");
 
                 collect.Clear();
             }

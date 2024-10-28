@@ -7,7 +7,7 @@ namespace GreenDonut.LoadTests.LoadTesting;
 public abstract class TestRunnerBase(TestRunnerHost root)
 {
     private readonly TestRunnerHost _root = root;
-    public int Id = root.CreateId();
+    private readonly int _id = root.CreateId();
 
     public Task Run()
     {
@@ -28,7 +28,7 @@ public abstract class TestRunnerBase(TestRunnerHost root)
 
                     _root.Results.Add(new Results
                     {
-                        Id = Id,
+                        Id = _id,
                         Duration = duration.Ticks,
                         Success = result.StatusCode == 200
                     }, cancel);
@@ -41,7 +41,7 @@ public abstract class TestRunnerBase(TestRunnerHost root)
                     var duration = Stopwatch.GetElapsedTime(time);
                     _root.Results.Add(new Results
                     {
-                        Id = Id,
+                        Id = _id,
                         Duration = duration.Ticks,
                         Success = false,
                         Exception = ex
