@@ -21,13 +21,4 @@
     <ProjectReference Include="..\Core\GreenDonut.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Update="DataLoaderBase2.Fetch.cs">
-      <DependentUpon>DataLoaderBase2.cs</DependentUpon>
-    </Compile>
-    <Compile Update="DataLoaderBase2.IDataLoader.cs">
-      <DependentUpon>DataLoaderBase2.cs</DependentUpon>
-    </Compile>
-  </ItemGroup>
-
 </Project>
