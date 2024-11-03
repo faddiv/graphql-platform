@@ -67,15 +67,20 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
         }
         else
         {
-            if (Cache.TryGetOrAddPromise(cacheKey,
-                static (_, _) => Promise<TValue?>.Create(),
-                (object?)null, out promise))
+            if (Cache.TryGetOrAddPromise(cacheKey, CreatePromise, (object?)null, out promise))
             {
                 _diagnosticEvents.ResolvedTaskFromCache(this, cacheKey, promise.Task);
             }
             else
             {
-                AddPromiseToBatch(key, promise, cancellationToken);
+                if (IsDefault(promise))
+                {
+                    promise = CreatePromiseFromBatch(key, cancellationToken);
+                }
+                else
+                {
+                    AddPromiseToBatch(key, promise, cancellationToken);
+                }
             }
         }
 
@@ -121,5 +126,16 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
             EnsureBatchExecuted(currentBranch, cancellationToken);
             currentBranch = CreateNewBatch(currentBranch);
         }
+    }
+
+    private static bool IsDefault(Promise<TValue?> promise)
+    {
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+        return promise.Task is null;
+    }
+
+    private static Promise<TValue?> CreatePromise(PromiseCacheKey promiseCacheKey, object? o)
+    {
+        return Promise<TValue?>.Create();
     }
 }
