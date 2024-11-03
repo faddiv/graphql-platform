@@ -1,106 +1,62 @@
-using System.Runtime.CompilerServices;
+using System.Collections.Concurrent;
 
 namespace GreenDonutV2;
 
-using System.Diagnostics.CodeAnalysis;
 using GreenDonut;
-using Internals;
 
 internal class Batch<TKey> where TKey : notnull
 {
-    private readonly Dictionary<TKey, IPromise> _items = [];
-    private readonly Lock _lock = new();
-    private BatchStatus _status = BatchStatus.Open;
+    private readonly ConcurrentDictionary<TKey, IPromise> _items = [];
+    private BatchStatusHandler _status = new();
+    private int _adding;
     private int _size;
 
     public int MaxSize { get; set; }
 
-    public IReadOnlyList<TKey> Keys => _status == BatchStatus.Closed ? [.. _items.Keys] : [];
+    public IReadOnlyList<TKey> Keys => _status.Is(BatchStatus.Closed) ? [.. _items.Keys] : [];
+
+    public int Size => _size;
 
     public bool TryGetOrCreatePromise<TValue>(
         TKey key,
         bool allowCachePropagation,
         out Promise<TValue?> promise)
     {
+        if (_items.TryGetValue(key, out var result))
+        {
+            promise = (Promise<TValue?>)result;
+            return true;
+        }
+
         if (!CanAdd())
         {
             promise = default;
             return false;
         }
 
-        lock (_lock)
+        Interlocked.Increment(ref _adding);
+        try
         {
-            if (!CanAdd())
+            if (!TryReserveSlot())
             {
                 promise = default;
                 return false;
             }
 
-            if (_items.TryGetValue(key, out var result))
+            var newPromise = Promise<TValue?>.Create(!allowCachePropagation);
+            promise = (Promise<TValue?>)_items.GetOrAdd(key, newPromise);
+
+            if (!ReferenceEquals(promise.Task, newPromise.Task))
             {
-                promise = (Promise<TValue?>)result;
-                return true;
+                Interlocked.Decrement(ref _size);
             }
 
-            promise = Promise<TValue?>.Create(!allowCachePropagation);
-
-            _size++;
-            _items.Add(key, promise);
             return true;
         }
-    }
-
-    public bool NeedsScheduling()
-    {
-        if (_status != BatchStatus.Open)
+        finally
         {
-            return false;
+            Interlocked.Decrement(ref _adding);
         }
-
-        if (_size == 0)
-        {
-            return false;
-        }
-
-        var original = (BatchStatus)Interlocked.CompareExchange(
-            ref Unsafe.As<BatchStatus, int>(ref _status),
-            (int)BatchStatus.Scheduled,
-            (int)BatchStatus.Open);
-        return original == BatchStatus.Open;
-    }
-
-    public Promise<TValue> GetPromise<TValue>(TKey key)
-        => (Promise<TValue>)_items[key];
-
-    public void Close()
-    {
-        lock (_lock)
-        {
-            _status = BatchStatus.Closed;
-        }
-    }
-
-    internal void ClearUnsafe()
-    {
-        MaxSize = 0;
-        _size = 0;
-        _items.Clear();
-        _status = BatchStatus.Open;
-    }
-
-    private bool CanAdd()
-    {
-        if (_status == BatchStatus.Closed)
-        {
-            return false;
-        }
-
-        if (MaxSize > 0 && _size >= MaxSize)
-        {
-            return false;
-        }
-
-        return true;
     }
 
     public bool TryAddPromise(TKey key, IPromise promise)
@@ -110,21 +66,100 @@ internal class Batch<TKey> where TKey : notnull
             return false;
         }
 
-        lock (_lock)
+        Interlocked.Increment(ref _adding);
+        try
         {
-            if (!CanAdd())
+            if (!TryReserveSlot())
             {
                 return false;
             }
 
             // ReSharper disable once InvertIf
-            if (_items.TryAdd(key, promise))
+            if (!_items.TryAdd(key, promise))
             {
-                _size++;
-                return true;
+                Interlocked.Decrement(ref _size);
+                return false;
             }
+
+            return true;
+
+        }
+        finally
+        {
+            Interlocked.Decrement(ref _adding);
+        }
+    }
+
+    public bool NeedsScheduling()
+    {
+        if (!_status.Is(BatchStatus.Open))
+        {
+            return false;
         }
 
-        return false;
+        if (Size == 0)
+        {
+            return false;
+        }
+
+
+        var original = _status.SetStatus(BatchStatus.Scheduled, BatchStatus.Open);
+        return original == BatchStatus.Open;
+    }
+
+    public Promise<TValue> GetPromise<TValue>(TKey key)
+        => (Promise<TValue>)_items[key];
+
+    public void Close(CancellationToken cancellationToken)
+    {
+        _status.SetStatus(BatchStatus.Closed);
+        var waiter = new SpinWait();
+        while (Interlocked.CompareExchange(ref _adding, 0, 0) > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            waiter.SpinOnce();
+        }
+    }
+
+    internal void ClearUnsafe()
+    {
+        MaxSize = 0;
+        _size = 0;
+        _adding = 0;
+        _items.Clear();
+        _status = new BatchStatusHandler();
+    }
+
+    private bool CanAdd()
+    {
+        if (_status.Is(BatchStatus.Closed))
+        {
+            return false;
+        }
+
+        if (MaxSize > 0 && Size >= MaxSize)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool TryReserveSlot()
+    {
+        if (!CanAdd())
+        {
+            return false;
+        }
+
+        var size = Interlocked.Increment(ref _size);
+
+        if (MaxSize > 0 && size > Size)
+        {
+            Interlocked.Decrement(ref _size);
+            return false;
+        }
+
+        return true;
     }
 }

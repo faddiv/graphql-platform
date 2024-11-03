@@ -47,7 +47,7 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
         //Remove the batch only if it is still the same.
         Interlocked.CompareExchange(ref _currentBatch, null, batch);
 
-        batch.Close();
+        batch.Close(cancellationToken);
 
         var errors = false;
 
