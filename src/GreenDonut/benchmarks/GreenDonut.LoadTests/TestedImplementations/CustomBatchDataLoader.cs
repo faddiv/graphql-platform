@@ -1,6 +1,6 @@
 using GreenDonutV2;
 
-namespace GreenDonut.LoadTests.TestClasses;
+namespace GreenDonut.LoadTests.TestedImplementations;
 
 public class CustomBatchDataLoader(
     IBatchScheduler batchScheduler,
@@ -11,7 +11,9 @@ public class CustomBatchDataLoader(
         IReadOnlyList<string> keys,
         CancellationToken cancellationToken)
         => Task<IReadOnlyDictionary<string, string>>.Factory.StartNew(static (state) =>
-            state is IReadOnlyList<string> keysI ? keysI.ToDictionary(t => t, t => "Value:" + t) : new Dictionary<string, string>(), keys, cancellationToken);
+            state is IReadOnlyList<string> keysI
+                ? keysI.ToDictionary(t => t, t => "Value:" + t)
+                : new Dictionary<string, string>(), keys, cancellationToken);
 }
 
 public class CustomBatchDataLoader2(
@@ -23,5 +25,7 @@ public class CustomBatchDataLoader2(
         IReadOnlyList<string> keys,
         CancellationToken cancellationToken)
         => Task<IReadOnlyDictionary<string, string>>.Factory.StartNew(static (state) =>
-            state is IReadOnlyList<string> keysI ? keysI.ToDictionary(t => t, t => "Value:" + t) : new Dictionary<string, string>(), keys, cancellationToken);
+            state is IReadOnlyList<string> keysI
+                ? keysI.ToDictionary(t => t, t => "Value:" + t)
+                : new Dictionary<string, string>(), keys, cancellationToken);
 }

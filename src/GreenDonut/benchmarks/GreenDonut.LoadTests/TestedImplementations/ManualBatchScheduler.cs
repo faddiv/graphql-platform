@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 
-namespace GreenDonut.LoadTests.TestClasses;
+namespace GreenDonut.LoadTests.TestedImplementations;
 
 public class ManualBatchScheduler : IBatchScheduler
 {

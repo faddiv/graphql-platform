@@ -77,6 +77,7 @@ internal class Batch<TKey> where TKey : notnull
             // ReSharper disable once InvertIf
             if (!_items.TryAdd(key, promise))
             {
+                // The execution doesn't get here.
                 Interlocked.Decrement(ref _size);
                 return false;
             }
