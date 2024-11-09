@@ -1,5 +1,6 @@
 ﻿using System.Buffers;
 using GreenDonut;
+using GreenDonutV2.Internals;
 
 namespace GreenDonutV2;
 
@@ -137,6 +138,35 @@ partial class PromiseCache2
             if (subscription is Subscription<T> casted)
             {
                 casted.OnNext(key, clonedPromise);
+            }
+        }
+    }
+
+    private void NotifySubscribers<T>(ReadOnlySpan<KeyAndPromise<T>> promises)
+    {
+        if (!_subscriptions.TryGetValue(typeof(T), out var subscriptions))
+        {
+            return;
+        }
+
+        foreach (var keyAndPromise in promises)
+        {
+            var key = keyAndPromise.Key;
+            var promise = keyAndPromise.Promise;
+
+            if (promise.Task is not { IsCompletedSuccessfully: true, Result: not null })
+            {
+                continue;
+            }
+
+            var clonedPromise = promise.Clone();
+
+            foreach (var subscription in subscriptions)
+            {
+                if (subscription is Subscription<T> casted)
+                {
+                    casted.OnNext(key, clonedPromise);
+                }
             }
         }
     }

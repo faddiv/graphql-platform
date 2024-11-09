@@ -61,81 +61,28 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
         var cacheKey = new PromiseCacheKey(CacheKeyType, key);
 
         Promise<TValue?> promise;
-        if (Cache is null)
+        if (Cache?.TryGetPromise(cacheKey, out promise) ?? false)
         {
-            promise = CreatePromiseFromBatch(key, cancellationToken);
-        }
-        else
-        {
-            if (Cache.TryGetOrAddPromise(cacheKey, CreatePromise, (object?)null, out promise))
-            {
-                _diagnosticEvents.ResolvedTaskFromCache(this, cacheKey, promise.Task);
-            }
-            else
-            {
-                if (IsDefault(promise))
-                {
-                    promise = CreatePromiseFromBatch(key, cancellationToken);
-                }
-                else
-                {
-                    AddPromiseToBatch(key, promise, cancellationToken);
-                }
-            }
+            _diagnosticEvents.ResolvedTaskFromCache(this, cacheKey, promise.Task);
+            return promise;
         }
 
-        return promise;
-    }
-
-    private Promise<TValue?> CreatePromiseFromBatch(
-        TKey key,
-        CancellationToken cancellationToken)
-    {
         var currentBranch = _currentBatch ?? CreateNewBatch(null);
         while (true)
         {
             if (currentBranch.TryGetOrCreatePromise(
                 key,
                 AllowCachePropagation,
-                out Promise<TValue?> promise))
+                out Promise<TValue?> promise1))
             {
-                return promise;
+                promise = promise1;
+                break;
             }
 
             EnsureBatchExecuted(currentBranch, cancellationToken);
             currentBranch = CreateNewBatch(currentBranch);
         }
-    }
 
-    private void AddPromiseToBatch(
-        TKey key,
-        Promise<TValue?> promise,
-        CancellationToken cancellationToken)
-    {
-        IPromise ipromise = promise;
-        var currentBranch = _currentBatch ?? CreateNewBatch(null);
-        while (true)
-        {
-            if (currentBranch.TryAddPromise(
-                key,
-                ipromise))
-            {
-                return;
-            }
-
-            EnsureBatchExecuted(currentBranch, cancellationToken);
-            currentBranch = CreateNewBatch(currentBranch);
-        }
-    }
-
-    private static bool IsDefault(Promise<TValue?> promise)
-    {
-        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
-        return promise.Task is null;
-    }
-
-    private static Promise<TValue?> CreatePromise(PromiseCacheKey promiseCacheKey, object? o)
-    {
-        return Promise<TValue?>.Create();
+        return promise;
     }
 }

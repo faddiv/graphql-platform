@@ -1,4 +1,5 @@
 ﻿using System.Buffers;
+using System.Runtime.InteropServices;
 using GreenDonut;
 using GreenDonutV2.Internals;
 
@@ -105,21 +106,34 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
         IReadOnlyList<TKey> keys,
         ReadOnlySpan<Result<TValue?>> results)
     {
-        for (var i = 0; i < keys.Count; i++)
+        var promiseArray = ArrayPool<KeyAndPromise<TValue?>>.Shared.Rent(keys.Count);
+        var promises = promiseArray.AsSpan(0, keys.Count);
+        try
         {
-            var key = keys[i];
-            var value = results[i];
-
-            if (value.Kind is ResultKind.Undefined)
+            for (var i = 0; i < keys.Count; i++)
             {
-                // in case we got here less or more results as expected, the
-                // complete batch operation failed.
-                Exception error = Errors.CreateKeysAndValuesMustMatch(keys.Count, i);
-                BatchOperationFailed(batch, keys, error);
-                return;
+                var key = keys[i];
+                var value = results[i];
+
+                if (value.Kind is ResultKind.Undefined)
+                {
+                    // in case we got here less or more results as expected, the
+                    // complete batch operation failed.
+                    Exception error = Errors.CreateKeysAndValuesMustMatch(keys.Count, i);
+                    BatchOperationFailed(batch, keys, error);
+                    return;
+                }
+
+                var promise = batch.GetPromise<TValue?>(key);
+                promises[i] = new KeyAndPromise<TValue?>(new PromiseCacheKey(CacheKeyType, key), promise);
+                SetSingleResult(promise, key, value);
             }
 
-            SetSingleResult(batch.GetPromise<TValue?>(key), key, value);
+            Cache?.TryAddMany<TValue?>(promises);
+        }
+        finally
+        {
+            ArrayPool<KeyAndPromise<TValue?>>.Shared.Return(promiseArray, clearArray: true);
         }
 
         _diagnosticEvents.BatchResults(keys, results);

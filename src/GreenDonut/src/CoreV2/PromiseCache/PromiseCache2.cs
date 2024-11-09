@@ -30,42 +30,53 @@ public sealed partial class PromiseCache2(int size) : IPromiseCache2
 
     public Task<T> GetOrAddTask<T>(PromiseCacheKey key, Func<PromiseCacheKey, Promise<T>> createPromise)
     {
-        TryGetOrAddPromise(
-            key,
-            static (key, p) => p(key),
-            createPromise,
-            out var promise);
-        return promise.Task;
-    }
-
-    public bool TryGetOrAddPromise<T, TState>(
-        PromiseCacheKey key,
-        Func<PromiseCacheKey, TState, Promise<T>> createPromise,
-        TState state,
-        out Promise<T> promise)
-    {
+        Promise<T> promise;
         if (_promises.TryGetValue(key, out var entry))
         {
             promise = entry.As<T>();
-            return true;
+            return promise.Task;
         }
 
+        var createdPromise = createPromise(key);
         if (!TryReserveSlot())
         {
-            promise = default;
-            return false;
+            NotifySubscribersOnComplete(createdPromise, key);
+            return createdPromise.Task;
         }
 
-        var createdPromise = createPromise(key, state);
         promise = (Promise<T>)_promises.GetOrAdd(key, createdPromise);
         if (!ReferenceEquals(promise.Task, createdPromise.Task))
         {
             Interlocked.Decrement(ref _usage);
-            return true;
+            return promise.Task;
         }
 
         NotifySubscribersOnComplete(promise, key);
+        return promise.Task;
+    }
+
+    public bool TryGetPromise<TValue>(PromiseCacheKey cacheKey, out Promise<TValue?> promise)
+    {
+        if (_promises.TryGetValue(cacheKey, out var entry))
+        {
+            promise = entry.As<TValue>();
+            return true;
+        }
+
+        promise = default;
         return false;
+    }
+
+    public void TryAddMany<TValue>(ReadOnlySpan<KeyAndPromise<TValue>> promises)
+    {
+        foreach (var keyAndPromise in promises)
+        {
+            if (TryReserveSlot())
+            {
+                _promises.TryAdd(keyAndPromise.Key, keyAndPromise.Promise);
+            }
+        }
+        NotifySubscribers(promises);
     }
 
     /// <inheritdoc />
