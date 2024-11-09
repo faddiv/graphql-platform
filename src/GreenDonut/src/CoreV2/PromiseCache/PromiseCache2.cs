@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.Collections.Concurrent;
 using GreenDonut;
 using GreenDonutV2.Internals;
@@ -59,7 +58,7 @@ public sealed partial class PromiseCache2(int size) : IPromiseCache2
     {
         if (_promises.TryGetValue(cacheKey, out var entry))
         {
-            promise = entry.As<TValue>();
+            promise = entry.As<TValue?>();
             return true;
         }
 

@@ -60,8 +60,7 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
     {
         var cacheKey = new PromiseCacheKey(CacheKeyType, key);
 
-        Promise<TValue?> promise;
-        if (Cache?.TryGetPromise(cacheKey, out promise) ?? false)
+        if (Cache?.TryGetPromise(cacheKey, out Promise<TValue?> promise) ?? false)
         {
             _diagnosticEvents.ResolvedTaskFromCache(this, cacheKey, promise.Task);
             return promise;

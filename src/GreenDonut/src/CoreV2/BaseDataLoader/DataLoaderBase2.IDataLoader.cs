@@ -79,7 +79,6 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
         async Task<TValue?> AwaitValue() => (TValue)(await value.ConfigureAwait(false))!;
     }
 
-    /// <inheritdoc />
     public void ClearCache() => Cache?.Clear();
 
     void IDataLoader.Set(object key, Task<object?> value)
