@@ -68,14 +68,22 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
         else
         {
             if (Cache.TryGetOrAddPromise(cacheKey,
-                static (_, state) => state.@this.CreatePromiseFromBatch(state.key, state.cancellationToken),
-                (@this: this, key, cancellationToken), out promise))
+                CreatePromise,
+                (this, key, cancellationToken), out promise))
             {
                 _diagnosticEvents.ResolvedTaskFromCache(this, cacheKey, promise.Task);
             }
         }
 
         return promise;
+
+        static Promise<TValue?> CreatePromise(
+            PromiseCacheKey _,
+            (DataLoaderBase2<TKey, TValue>, TKey, CancellationToken) state)
+        {
+            var (self, key, cancellationToken) = state;
+            return self.CreatePromiseFromBatch(key, cancellationToken);
+        }
     }
 
     private Promise<TValue?> CreatePromiseFromBatch(
