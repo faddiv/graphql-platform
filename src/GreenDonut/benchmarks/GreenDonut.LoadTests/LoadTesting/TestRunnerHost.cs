@@ -57,8 +57,7 @@ public class TestRunnerHost
                 pauseSum += pause.Ticks;
                 pauseCount++;
                 var pauseAvg = TimeSpan.FromTicks(pauseSum/pauseCount);
-                Console.WriteLine($"Duration: {TimeSpan.FromTicks(duration)} Pause: {pause}" +
-                    $" DurationAvg:{durationAvg} PauseAvg: {pauseAvg} SuccessRate: {(double)successSum/sumCount:P}");
+                Console.WriteLine($"DurationAvg:{durationAvg} PauseAvg: {pauseAvg} SuccessRate: {(double)successSum/sumCount:P}");
 
                 collect.Clear();
             }

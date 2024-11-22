@@ -1,4 +1,4 @@
-namespace GreenDonutV2;
+namespace GreenDonutV2.Internals;
 
 internal static class Errors
 {

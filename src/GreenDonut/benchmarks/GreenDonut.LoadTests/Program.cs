@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using GreenDonut;
+using GreenDonut.Benchmarks;
 using GreenDonut.LoadTests;
 using GreenDonut.LoadTests.LoadTesting;
 using GreenDonut.LoadTests.TestClasses;
@@ -19,7 +20,8 @@ services.AddDataLoader<CustomBatchDataLoader2>();
 
 var sp = services.BuildServiceProvider();
 
-await Tests.RunWithCustomRunner(sp);
+await Tests.ExecuteNTimes(sp, 100, Defaults.Original, default);
+//await Tests.RunWithCustomRunner(sp);
 //NBomberTest.RunWithNBomber(sp);
 
 

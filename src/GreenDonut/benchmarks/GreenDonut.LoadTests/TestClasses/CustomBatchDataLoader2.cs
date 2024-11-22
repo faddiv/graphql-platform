@@ -1,9 +1,11 @@
+﻿using GreenDonutV2;
+
 namespace GreenDonut.LoadTests.TestClasses;
 
-public class CustomBatchDataLoader(
+public class CustomBatchDataLoader2(
     IBatchScheduler batchScheduler,
-    DataLoaderOptions options)
-    : BatchDataLoader<string, string>(batchScheduler, options)
+    DataLoaderOptions2 options)
+    : BatchDataLoader2<string, string>(batchScheduler, options)
 {
     protected override Task<IReadOnlyDictionary<string, string>> LoadBatchAsync(
         IReadOnlyList<string> keys,

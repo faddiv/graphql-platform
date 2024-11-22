@@ -3,11 +3,32 @@ using System.Diagnostics;
 using GreenDonut.Benchmarks;
 using GreenDonut.LoadTests.LoadTesting;
 using Microsoft.Extensions.DependencyInjection;
+using Spectre.Console;
 
 namespace GreenDonut.LoadTests.TestClasses;
 
 public static class Tests
 {
+    public static async Task ExecuteNTimes(
+        ServiceProvider serviceProvider,
+        int count,
+        string version,
+        CancellationToken ct)
+    {
+        for (var i = 0; i < count; i++)
+        {
+            var result = await ExecuteTestWith(serviceProvider, version, ct);
+            if (result.StatusCode != 200)
+            {
+                AnsiConsole.MarkupLine($"[red]Failed[/] {result.StatusCode} {result.Message}");
+            }
+            else
+            {
+                AnsiConsole.MarkupLine($"[green]Success[/]");
+            }
+        }
+    }
+
     public static async Task RunWithCustomRunner(ServiceProvider serviceProvider)
     {
         var root = new TestRunnerHost();
