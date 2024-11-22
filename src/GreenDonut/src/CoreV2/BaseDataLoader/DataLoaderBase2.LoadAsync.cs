@@ -84,4 +84,24 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
 
         return promise;
     }
+
+    private Promise<TValue?> CreatePromiseFromBatch(
+        TKey key,
+        CancellationToken cancellationToken)
+    {
+        var currentBranch = _currentBatch ?? CreateNewBatch(null);
+        while (true)
+        {
+            if (currentBranch.TryGetOrCreatePromise(
+                key,
+                AllowCachePropagation,
+                out Promise<TValue?>? promise))
+            {
+                return promise.Value;
+            }
+
+            EnsureBatchExecuted(currentBranch, cancellationToken);
+            currentBranch = CreateNewBatch(currentBranch);
+        }
+    }
 }

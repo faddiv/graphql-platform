@@ -20,9 +20,4 @@ internal static class InternalHelpers
     {
         return Math.Max(size, MinimumSize);
     }
-    public static int CalculateLockThreshold(int size)
-    {
-        size = CalculateSize(size);
-        return size - (int)Math.Max(size * 0.1, 10);
-    }
 }
