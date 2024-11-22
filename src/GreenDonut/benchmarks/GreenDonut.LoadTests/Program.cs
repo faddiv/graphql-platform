@@ -21,9 +21,10 @@ services.AddDataLoader<CustomBatchDataLoader2>();
 
 var sp = services.BuildServiceProvider();
 
-await Tests.ExecuteNTimes(sp, 100, Defaults.Original, default);
-//await Tests.RunWithCustomRunner(sp);
-//NBomberTest.RunWithNBomber(sp);
+//await Tests.ExecuteNTimes(sp, 100, Defaults.Original, default);
+await Tests.RunWithCustomRunner(sp);
+//NBomberTest.RunWithNBomber(sp, Defaults.Original);
+//NBomberTest.RunWithNBomber(sp, Defaults.VNext);
 
 
 

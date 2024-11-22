@@ -7,7 +7,7 @@ namespace GreenDonut.LoadTests;
 
 public static class NBomberTest
 {
-    public static void RunWithNBomber(ServiceProvider serviceProvider)
+    public static void RunWithNBomber(ServiceProvider serviceProvider, string version)
     {
         var loadSimulations = Simulation.KeepConstant(
             copies: 10,
@@ -15,23 +15,13 @@ public static class NBomberTest
         var warmupDuration = TimeSpan.FromSeconds(10);
 
         var scenario1 = Scenario.Create("load_batch original",
-                async context => ToResponse(await Tests.ExecuteTestWith(serviceProvider, "Original", context.ScenarioCancellationToken)))
+                async context => ToResponse(await Tests.ExecuteTestWith(serviceProvider, version, context.ScenarioCancellationToken)))
             .WithLoadSimulations(
                 loadSimulations
             ).WithWarmUpDuration(warmupDuration);
 
         NBomberRunner
             .RegisterScenarios(scenario1)
-            .Run();
-
-        var scenario2 = Scenario.Create("load_batch vNext",
-                async context => ToResponse(await Tests.ExecuteTestWith(serviceProvider, "vNext", context.ScenarioCancellationToken)))
-            .WithLoadSimulations(
-                loadSimulations
-            ).WithWarmUpDuration(warmupDuration);
-
-        NBomberRunner
-            .RegisterScenarios(scenario2)
             .Run();
     }
 
