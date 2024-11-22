@@ -58,8 +58,7 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
     /// Gets or sets the context data which can be used to store
     /// transient state on the DataLoader.
     /// </summary>
-    public IImmutableDictionary<string, object?> ContextData { get; set; } =
-        ImmutableDictionary<string, object?>.Empty;
+    public IImmutableDictionary<string, object?> ContextData { get; set; } = ImmutableDictionary<string, object?>.Empty;
 
     /// <summary>
     /// Specifies if the values fetched by this DataLoader
@@ -75,8 +74,7 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
     /// <summary>
     /// Gets the batch scheduler of this DataLoader.
     /// </summary>
-    protected internal IBatchScheduler BatchScheduler
-        => _batchScheduler;
+    protected internal IBatchScheduler BatchScheduler => _batchScheduler;
 
     /// <summary>
     /// Gets the options of this DataLoader.
@@ -141,24 +139,4 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
     // ReSharper disable once MemberCanBePrivate.Global
     protected static string GetCacheKeyType(Type type)
         => type.FullName ?? type.Name;
-
-    private Promise<TValue?> CreatePromiseFromBatch(
-        TKey key,
-        CancellationToken cancellationToken)
-    {
-        var currentBranch = _currentBatch ?? CreateNewBatch(null);
-        while (true)
-        {
-            if (currentBranch.TryGetOrCreatePromise(
-                key,
-                AllowCachePropagation,
-                out Promise<TValue?>? promise))
-            {
-                return promise.Value;
-            }
-
-            EnsureBatchExecuted(currentBranch, cancellationToken);
-            currentBranch = CreateNewBatch(currentBranch);
-        }
-    }
 }

@@ -1,11 +1,9 @@
 using System.Buffers;
-using System.Collections.Concurrent;
 using GreenDonut;
-using GreenDonutV2.Internals;
 
 namespace GreenDonutV2;
 
-public sealed partial class PromiseCache2
+partial class PromiseCache2
 {
     /// <inheritdoc />
     public void Publish<T>(T value)

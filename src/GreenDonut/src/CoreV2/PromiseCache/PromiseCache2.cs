@@ -19,9 +19,6 @@ public sealed partial class PromiseCache2(int size) : IPromiseCache2
     private readonly ConcurrentDictionary<Type, ConcurrentStack<Subscription>> _subscriptions = new();
     private readonly ConcurrentStack<IPromise> _promises2 = new();
     private readonly int _size = InternalHelpers.CalculateSize(size);
-    private readonly int _lockThreshold = InternalHelpers.CalculateLockThreshold(size);
-
-    private readonly Lock _mutationLock = new();
     private int _usage;
 
     /// <inheritdoc />
@@ -44,43 +41,21 @@ public sealed partial class PromiseCache2(int size) : IPromiseCache2
         }
 
         promise = createPromise(key, state);
-        if (_usage >= _size)
+        if (!TryReserveSlot())
         {
             return false;
         }
 
-        if (_usage >= _lockThreshold)
+        var createdPromise = _promises.GetOrAdd(key, promise);
+        if (!ReferenceEquals(promise.Task, createdPromise.Task))
         {
-            lock (_mutationLock)
-            {
-                if (_usage >= _size)
-                {
-                    return false;
-                }
-
-                if (TryAddNoLockInternal(key, promise))
-                {
-                    return false;
-                }
-            }
-        }
-        else
-        {
-            if (TryAddNoLockInternal(key, promise))
-            {
-                return false;
-            }
+            Interlocked.Decrement(ref _usage);
+            promise = createdPromise.As<T>();
+            return true;
         }
 
-
-        // ReSharper disable once InconsistentlySynchronizedField
-        if (_promises.TryGetValue(key, out entry))
-        {
-            promise = entry.As<T>();
-            return false;
-        }
-
-        throw new InvalidOperationException($"Could not get or add Promise with key: {key}");
+        NotifySubscribersOnComplete(promise, key);
+        return false;
     }
 
     public Task<T> GetOrAddTask<T>(PromiseCacheKey key, Func<PromiseCacheKey, Promise<T>> createPromise)
@@ -128,16 +103,13 @@ public sealed partial class PromiseCache2(int size) : IPromiseCache2
     /// <inheritdoc />
     public bool TryRemove(PromiseCacheKey key)
     {
-        lock (_mutationLock)
+        if (!_promises.TryRemove(key, out _))
         {
-            if (!_promises.TryRemove(key, out _))
-            {
-                return false;
-            }
-
-            Interlocked.Decrement(ref _usage);
-            return true;
+            return false;
         }
+
+        Interlocked.Decrement(ref _usage);
+        return true;
     }
 
     /// <inheritdoc />
@@ -155,47 +127,38 @@ public sealed partial class PromiseCache2(int size) : IPromiseCache2
         Func<TState, Promise<T>> createPromise,
         TState state)
     {
+        if (!TryReserveSlot())
+        {
+            return false;
+        }
+
+        var promise = createPromise(state);
+        var createdPromise = _promises.GetOrAdd(key, promise);
+        if (!ReferenceEquals(promise.Task, createdPromise.Task))
+        {
+            Interlocked.Decrement(ref _usage);
+            return false;
+        }
+
+        NotifySubscribersOnComplete(promise, key);
+        return true;
+    }
+
+    private bool TryReserveSlot()
+    {
         if (_usage >= _size)
         {
             return false;
         }
 
-        if (_usage >= _lockThreshold)
+        var usage = Interlocked.Increment(ref _usage);
+        // ReSharper disable once InvertIf
+        if (usage > _size)
         {
-            lock (_mutationLock)
-            {
-                if (_usage >= _size)
-                {
-                    return false;
-                }
-
-                var promise = createPromise(state);
-                if (TryAddNoLockInternal(key, promise))
-                {
-                    return true;
-                }
-            }
-        }
-        else
-        {
-            if (TryAddNoLockInternal(key, createPromise(state)))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private bool TryAddNoLockInternal<T>(PromiseCacheKey key, Promise<T> promise)
-    {
-        if (!_promises.TryAdd(key, promise))
-        {
+            Interlocked.Decrement(ref _usage);
             return false;
         }
 
-        Interlocked.Increment(ref _usage);
-        NotifySubscribersOnComplete(promise, key);
         return true;
     }
 }

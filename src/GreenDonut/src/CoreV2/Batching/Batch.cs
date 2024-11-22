@@ -10,12 +10,12 @@ internal class Batch<TKey> where TKey : notnull
 {
     private readonly Dictionary<TKey, IPromise> _items = [];
     private readonly Lock _lock = new();
-    private BatchStatus _status = BatchStatus.Open;
+    private BatchStatusHandler _status = new();
     private int _size;
 
     public int MaxSize { get; set; }
 
-    public IReadOnlyList<TKey> Keys => _status == BatchStatus.Closed ? [.. _items.Keys] : [];
+    public IReadOnlyList<TKey> Keys => _status.Is(BatchStatus.Closed) ? [.. _items.Keys] : [];
 
     public bool TryGetOrCreatePromise<TValue>(
         TKey key,
@@ -52,7 +52,7 @@ internal class Batch<TKey> where TKey : notnull
 
     public bool NeedsScheduling()
     {
-        if (_status != BatchStatus.Open)
+        if (!_status.Is(BatchStatus.Open))
         {
             return false;
         }
@@ -62,10 +62,7 @@ internal class Batch<TKey> where TKey : notnull
             return false;
         }
 
-        var original = (BatchStatus)Interlocked.CompareExchange(
-            ref Unsafe.As<BatchStatus, int>(ref _status),
-            (int)BatchStatus.Scheduled,
-            (int)BatchStatus.Open);
+        var original = _status.SetStatus(BatchStatus.Scheduled, BatchStatus.Open);
         return original == BatchStatus.Open;
     }
 
@@ -76,7 +73,7 @@ internal class Batch<TKey> where TKey : notnull
     {
         lock (_lock)
         {
-            _status = BatchStatus.Closed;
+            _status.SetStatus(BatchStatus.Closed);
         }
     }
 
@@ -85,12 +82,12 @@ internal class Batch<TKey> where TKey : notnull
         MaxSize = 0;
         _size = 0;
         _items.Clear();
-        _status = BatchStatus.Open;
+        _status = new BatchStatusHandler();
     }
 
     private bool CanAdd()
     {
-        if (_status == BatchStatus.Closed)
+        if (_status.Is(BatchStatus.Closed))
         {
             return false;
         }
