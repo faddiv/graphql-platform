@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using GreenDonut.Benchmarks;
 using GreenDonut.LoadTests.LoadTesting;
+using GreenDonut.LoadTests.TestedImplementations;
 using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console;
 

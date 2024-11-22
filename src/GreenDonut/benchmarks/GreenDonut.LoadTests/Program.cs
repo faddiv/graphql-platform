@@ -6,6 +6,7 @@ using GreenDonut.Benchmarks;
 using GreenDonut.LoadTests;
 using GreenDonut.LoadTests.LoadTesting;
 using GreenDonut.LoadTests.TestClasses;
+using GreenDonut.LoadTests.TestedImplementations;
 using Microsoft.Extensions.DependencyInjection;
 using NBomber.CSharp;
 using Spectre.Console;
