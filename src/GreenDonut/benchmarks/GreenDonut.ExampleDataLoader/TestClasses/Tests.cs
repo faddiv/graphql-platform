@@ -30,21 +30,21 @@ public static class Tests
         var dataLoader = ProvideDataLoader(sc, version);
         var batchScheduler = GetManualBatchScheduler(sc);
 
-        const int count = 100;
-        var tasks = ArrayPool<Task?>.Shared.Rent(count);
         var runCounter = _runCounterPool.Get();
+        var tasks = ArrayPool<Task?>.Shared.Rent(runCounter.CountAll);
         try
         {
-            for (var i = 0; i < count; i++)
+            for (var i = 0; i < runCounter.CountAll; i++)
             {
                 var contextNumber = Random.Shared.Next(0, 20) + 1;
                 var key = _keyPool.GetOrAdd(contextNumber, static i1 => $"Key{i1}");
+                var index = i;
 
-                tasks[i] = RunParallelDataLoad(dataLoader, key, i, runCounter, ct);
+                tasks[i] = Task.Run(() => RunParallelDataLoad(dataLoader, key, index, runCounter, ct), ct);
             }
 
             var time = Stopwatch.GetTimestamp();
-            while (runCounter.StartedCount < count)
+            while (runCounter.StartedCount < runCounter.CountAll)
             {
                 if (Stopwatch.GetElapsedTime(time) > TimeSpan.FromMilliseconds(500))
                 {
@@ -59,18 +59,18 @@ public static class Tests
             await Helpers.WaitAll(tasks, 500, ct);
             var elapsed = Stopwatch.GetElapsedTime(time1);
             var completed = tasks.Count(e => e?.IsCompleted ?? false);
-            if (completed < count)
+            if (completed < runCounter.CountAll)
             {
-                return new Result(501, $"Failed thread: {count - completed} elapsed: {elapsed}");
+                return new Result(501, $"Failed thread: {runCounter.CountAll - completed} elapsed: {elapsed}");
             }
 
             return runCounter.AllSucceeded
                 ? Result.Ok
-                : new Result(500, $"Failed on {runCounter.FailCount} elapsed: {elapsed}");
+                : new Result(502, $"Failed on {runCounter.FailCount} elapsed: {elapsed} FinishedCount: {runCounter.FinishedCount}");
         }
         finally
         {
-            ArrayPool<Task?>.Shared.Return(tasks);
+            ArrayPool<Task?>.Shared.Return(tasks, true);
             _runCounterPool.Return(runCounter);
         }
     }
@@ -87,30 +87,24 @@ public static class Tests
         RunCounter runCounter,
         CancellationToken ct)
     {
-        await Task.Yield();
+        bool finishedResult;
         try
         {
             var task = dataLoader.LoadAsync(key, ct);
             runCounter.Increment();
-            var result = await task;
-            if (result?.StartsWith("Value:") == true &&
-                result.EndsWith(key))
-            {
-                runCounter.Finished(index, true);
-            }
-            else
-            {
-                runCounter.Finished(index, false);
-            }
+            var result = await task.ConfigureAwait(false);
+            finishedResult =
+                (result?.StartsWith("Value:") ?? false) && result.EndsWith(key);
         }
         catch (OperationCanceledException)
         {
-            runCounter.Finished(index, true);
+            finishedResult = true;
         }
         catch (Exception)
         {
-            runCounter.Finished(index, false);
+            finishedResult = false;
         }
+        runCounter.Finished(index, finishedResult);
     }
 
     public static IDataLoader<string, string> ProvideDataLoader(IServiceScope sc, string version)

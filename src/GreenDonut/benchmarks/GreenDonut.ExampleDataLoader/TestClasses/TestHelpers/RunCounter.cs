@@ -21,6 +21,7 @@ public class RunCounter(int countAll) : IResettable
     }
 
     public int FailCount => _runs.Count(static e => !e);
+    public int FinishedCount => _finishedCount;
 
     public void Increment()
     {
@@ -35,9 +36,10 @@ public class RunCounter(int countAll) : IResettable
 
     public bool TryReset()
     {
+        var finished = _finishedCount == CountAll;
         _startedCount = 0;
         _finishedCount = 0;
         Array.Clear(_runs, 0, _runs.Length);
-        return true;
+        return finished;
     }
 }
