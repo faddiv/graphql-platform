@@ -1,4 +1,4 @@
-﻿namespace GreenDonut.LoadTests.LoadTesting;
+﻿namespace GreenDonut.ExampleDataLoader.TestClasses;
 
 public record Result(int StatusCode, string? Message = null)
 {

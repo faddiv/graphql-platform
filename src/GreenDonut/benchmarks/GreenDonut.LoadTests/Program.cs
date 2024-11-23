@@ -1,8 +1,6 @@
-using GreenDonut.Benchmarks;
+using GreenDonut.ExampleDataLoader;
+using GreenDonut.ExampleDataLoader.TestClasses;
 using GreenDonut.LoadTests;
-using GreenDonut.LoadTests.TestClasses;
-
-Console.WriteLine("Hello, World!");
 
 var sp = Tests.CreateServiceProvider();
 

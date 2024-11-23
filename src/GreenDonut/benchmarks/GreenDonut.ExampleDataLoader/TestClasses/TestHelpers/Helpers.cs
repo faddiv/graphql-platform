@@ -1,6 +1,6 @@
-﻿namespace GreenDonut.LoadTests.TestClasses;
+﻿namespace GreenDonut.ExampleDataLoader.TestClasses.TestHelpers;
 
-public class Helpers
+public static class Helpers
 {
     public static async Task WaitAll(Task?[] tasks, int milliseconds, CancellationToken ct)
     {

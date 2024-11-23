@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.ObjectPool;
 
-namespace GreenDonut.LoadTests.TestClasses;
+namespace GreenDonut.ExampleDataLoader.TestClasses.TestHelpers;
 
 public class RunCounterObjectPoolPolicy : IPooledObjectPolicy<RunCounter>
 {

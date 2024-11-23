@@ -1,11 +1,11 @@
-﻿using GreenDonut.LoadTests.LoadTesting;
-using GreenDonut.LoadTests.TestClasses;
+﻿using GreenDonut.ExampleDataLoader.TestClasses;
+using GreenDonut.LoadTests.LoadTesting;
 using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console;
 
 namespace GreenDonut.LoadTests;
 
-public class SimpleTesting
+public static class SimpleTesting
 {
     public static async Task ExecuteNTimes(
         ServiceProvider serviceProvider,
@@ -13,18 +13,16 @@ public class SimpleTesting
         string version,
         CancellationToken ct)
     {
+        Console.WriteLine("Starting test runs");
         for (var i = 0; i < count; i++)
         {
             var result = await Tests.ExecuteTestWith(serviceProvider, version, ct);
             if (result.StatusCode != 200)
             {
-                AnsiConsole.MarkupLine($"[red]Failed[/] {result.StatusCode} {result.Message}");
-            }
-            else
-            {
-                AnsiConsole.MarkupLine($"[green]Success[/]");
+                throw new ApplicationException($"Failed Run Detected: {result.Message}");
             }
         }
+        Console.WriteLine("All runs successful");
     }
 
 

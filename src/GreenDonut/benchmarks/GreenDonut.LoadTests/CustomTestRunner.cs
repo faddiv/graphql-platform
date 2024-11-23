@@ -1,6 +1,6 @@
-﻿using GreenDonut.Benchmarks;
+﻿using GreenDonut.ExampleDataLoader;
+using GreenDonut.ExampleDataLoader.TestClasses;
 using GreenDonut.LoadTests.LoadTesting;
-using GreenDonut.LoadTests.TestClasses;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace GreenDonut.LoadTests;

@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using GreenDonut.LoadTests.TestClasses;
+using GreenDonut.ExampleDataLoader.TestClasses;
 
 namespace GreenDonut.LoadTests.LoadTesting;
 

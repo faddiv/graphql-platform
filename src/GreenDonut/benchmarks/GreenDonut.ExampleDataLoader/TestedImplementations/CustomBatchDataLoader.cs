@@ -1,5 +1,6 @@
-namespace GreenDonut.LoadTests.TestedImplementations;
+namespace GreenDonut.ExampleDataLoader.TestedImplementations;
 
+// ReSharper disable once ClassNeverInstantiated.Global
 public class CustomBatchDataLoader(
     IBatchScheduler batchScheduler,
     DataLoaderOptions options)

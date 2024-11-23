@@ -1,6 +1,7 @@
 using BenchmarkDotNet.Attributes;
 using GreenDonut.Benchmarks.TestInfrastructure;
-using GreenDonut.LoadTests.TestClasses;
+using GreenDonut.ExampleDataLoader;
+using GreenDonut.ExampleDataLoader.TestClasses;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace GreenDonut.Benchmarks;

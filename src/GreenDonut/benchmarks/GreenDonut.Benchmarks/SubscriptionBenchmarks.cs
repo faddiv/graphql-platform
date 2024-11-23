@@ -1,8 +1,8 @@
 using System.Runtime.CompilerServices;
 using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Engines;
 using GreenDonut.Benchmarks.TestInfrastructure;
-using GreenDonut.LoadTests.TestClasses;
+using GreenDonut.ExampleDataLoader;
+using GreenDonut.ExampleDataLoader.TestClasses;
 using GreenDonutV2;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -12,7 +12,7 @@ namespace GreenDonut.Benchmarks;
 public class SubscriptionBenchmarks
 {
     private readonly string[] _keys = Enumerable.Range(1, 10).Select(e => $"Key{e}").ToArray();
-    private int _notificationCount = 0;
+    private int _notificationCount;
     private Action<IPromiseCache, Promise<string>> _callback = null!;
     private ServiceProvider _sp = null!;
 
@@ -23,10 +23,9 @@ public class SubscriptionBenchmarks
     [GlobalSetup]
     public void Setup()
     {
-        _callback = new(Handler);
+        _callback = Handler;
 
         _sp = Tests.CreateServiceProvider();
-
     }
 
     [Benchmark]

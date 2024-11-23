@@ -1,4 +1,4 @@
-﻿namespace GreenDonut.Benchmarks;
+﻿namespace GreenDonut.ExampleDataLoader;
 
 public static class Defaults
 {

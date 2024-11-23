@@ -1,13 +1,12 @@
 ﻿using System.Buffers;
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using GreenDonut.Benchmarks;
-using GreenDonut.LoadTests.LoadTesting;
-using GreenDonut.LoadTests.TestedImplementations;
+using GreenDonut.ExampleDataLoader.TestClasses.TestHelpers;
+using GreenDonut.ExampleDataLoader.TestedImplementations;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.ObjectPool;
 
-namespace GreenDonut.LoadTests.TestClasses;
+namespace GreenDonut.ExampleDataLoader.TestClasses;
 
 public static class Tests
 {
