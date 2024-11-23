@@ -1,4 +1,5 @@
-﻿using GreenDonut.LoadTests.TestClasses;
+﻿using GreenDonut.LoadTests.LoadTesting;
+using GreenDonut.LoadTests.TestClasses;
 using Microsoft.Extensions.DependencyInjection;
 using NBomber.Contracts;
 using NBomber.CSharp;

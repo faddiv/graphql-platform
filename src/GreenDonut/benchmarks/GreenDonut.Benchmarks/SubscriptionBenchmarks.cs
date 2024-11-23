@@ -1,6 +1,8 @@
 using System.Runtime.CompilerServices;
 using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Engines;
 using GreenDonut.Benchmarks.TestInfrastructure;
+using GreenDonut.LoadTests.TestClasses;
 using GreenDonutV2;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -15,7 +17,7 @@ public class SubscriptionBenchmarks
     private ServiceProvider _sp = null!;
 
     // ReSharper disable once MemberCanBePrivate.Global
-    [Params(Defaults.Version)]
+    [Params(Defaults.Original, Defaults.VNext)]
     public string Version { get; set; } = "Original";
 
     [GlobalSetup]
@@ -23,12 +25,7 @@ public class SubscriptionBenchmarks
     {
         _callback = new(Handler);
 
-        var services = new ServiceCollection();
-        services.TryAddDataLoader2Core();
-        services.AddDataLoader<CustomBatchDataLoader>();
-        services.AddDataLoader<CustomBatchDataLoader2>();
-
-        _sp = services.BuildServiceProvider();
+        _sp = Tests.CreateServiceProvider();
 
     }
 
@@ -36,7 +33,7 @@ public class SubscriptionBenchmarks
     public async Task<IReadOnlyList<string?>> SubscribeAndNotify()
     {
         using var sc = _sp.CreateScope();
-        var dataLoader = ProvideDataLoader(sc);
+        var dataLoader = Tests.ProvideDataLoader(sc, Version);
         var promiseCache = GetPromiseCache(sc);
         _notificationCount = 0;
         for (var i = 0; i < 16; i++)
@@ -44,7 +41,9 @@ public class SubscriptionBenchmarks
             promiseCache.Subscribe(_callback, null);
         }
 
-        var result = await dataLoader.LoadAsync(_keys);
+        var task = dataLoader.LoadAsync(_keys);
+        await Tests.GetManualBatchScheduler(sc).DispatchAsync();
+        var result = await task;
         while (_notificationCount < 160)
         {
             await Task.Yield();
@@ -58,13 +57,6 @@ public class SubscriptionBenchmarks
         return Version == "Original"
             ? sc.ServiceProvider.GetRequiredService<PromiseCacheOwner>().Cache
             : sc.ServiceProvider.GetRequiredService<PromiseCacheOwner2>().Cache;
-    }
-
-    private IDataLoader<string, string> ProvideDataLoader(IServiceScope serviceScope)
-    {
-        return Version == "Original"
-            ? serviceScope.ServiceProvider.GetRequiredService<CustomBatchDataLoader>()
-            : serviceScope.ServiceProvider.GetRequiredService<CustomBatchDataLoader2>();
     }
 
     public static async Task Test()

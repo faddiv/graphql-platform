@@ -10,8 +10,12 @@ public class CustomBatchDataLoader2(
     protected override Task<IReadOnlyDictionary<string, string>> LoadBatchAsync(
         IReadOnlyList<string> keys,
         CancellationToken cancellationToken)
-        => Task<IReadOnlyDictionary<string, string>>.Factory.StartNew(static (state) =>
-            state is IReadOnlyList<string> keysI
-                ? keysI.ToDictionary(t => t, t => "Value:" + t)
-                : new Dictionary<string, string>(), keys, cancellationToken);
+        => Task<IReadOnlyDictionary<string, string>>.Factory.StartNew(LoadBatchCore, keys, cancellationToken);
+
+    private static IReadOnlyDictionary<string, string> LoadBatchCore(object? state)
+    {
+        return state is IReadOnlyList<string> keysI
+            ? keysI.ToDictionary(t => t, t => "Value:" + t)
+            : new Dictionary<string, string>();
+    }
 }

@@ -1,7 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -9,13 +8,11 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
-    <PackageReference Include="NBomber" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\CoreV2\GreenDonutV2.csproj" />
     <ProjectReference Include="..\..\src\Core\GreenDonut.csproj" />
-    <ProjectReference Include="..\GreenDonut.ExampleDataLoader\GreenDonut.ExampleDataLoader.csproj" />
   </ItemGroup>
 
 </Project>

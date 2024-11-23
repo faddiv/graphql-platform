@@ -15,6 +15,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\CoreV2\GreenDonutV2.csproj" />
     <ProjectReference Include="..\..\src\Core\GreenDonut.csproj" />
+    <ProjectReference Include="..\GreenDonut.ExampleDataLoader\GreenDonut.ExampleDataLoader.csproj" />
   </ItemGroup>
 
 </Project>
