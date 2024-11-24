@@ -106,8 +106,7 @@ partial class PromiseCache2
     {
         if (promise.IsClone)
         {
-            throw new InvalidCastException(
-                "The promise is a clone and cannot be used to register a callback.");
+            return;
         }
 
         if (IsCompletedSuccessfully(promise))
