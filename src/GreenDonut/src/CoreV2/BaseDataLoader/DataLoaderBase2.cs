@@ -14,7 +14,7 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
     private readonly IBatchScheduler _batchScheduler;
     private readonly int _maxBatchSize;
     private readonly Lock _batchExchangeLock = new();
-    private Batch<TKey>? _currentBatch;
+    private Batch? _currentBatch;
 
     private ImmutableDictionary<string, IDataLoader> _branches =
         ImmutableDictionary<string, IDataLoader>.Empty;

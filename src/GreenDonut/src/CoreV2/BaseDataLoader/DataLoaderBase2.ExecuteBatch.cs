@@ -6,7 +6,7 @@ namespace GreenDonutV2;
 
 public abstract partial class DataLoaderBase2<TKey, TValue>
 {
-    private Batch<TKey> CreateNewBatch(Batch<TKey>? oldBatch)
+    private Batch CreateNewBatch(Batch? oldBatch)
     {
         var newBatch = _currentBatch;
         if (newBatch is not null && newBatch != oldBatch)
@@ -22,27 +22,27 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
                 return newBatch;
             }
 
-            newBatch = BatchPool<TKey>.Shared.Get();
+            newBatch = BatchPool.Shared.Get();
             newBatch.MaxSize = _maxBatchSize;
             _currentBatch = newBatch;
             return newBatch;
         }
     }
 
-    private void EnsureBatchExecuted(Batch<TKey>? batch, CancellationToken cancellationToken)
+    private void EnsureBatchExecuted(Batch? batch, string cacheKeyType, CancellationToken cancellationToken)
     {
         if (batch?.NeedsScheduling() ?? false)
         {
-            ExecuteBatchInternal(batch, cancellationToken);
+            ExecuteBatchInternal(batch, cacheKeyType, cancellationToken);
         }
     }
 
-    private void ExecuteBatchInternal(Batch<TKey> batch, CancellationToken cancellationToken)
+    private void ExecuteBatchInternal(Batch batch, string cacheKeyType, CancellationToken cancellationToken)
     {
-        _batchScheduler.Schedule(() => ExecuteBatch(batch, cancellationToken));
+        _batchScheduler.Schedule(() => ExecuteBatch(batch, cacheKeyType, cancellationToken));
     }
 
-    private async ValueTask ExecuteBatch(Batch<TKey> batch, CancellationToken cancellationToken)
+    private async ValueTask ExecuteBatch(Batch batch, string cacheKeyType, CancellationToken cancellationToken)
     {
         //Remove the batch only if it is still the same.
         Interlocked.CompareExchange(ref _currentBatch, null, batch);
@@ -51,7 +51,7 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
 
         var errors = false;
 
-        var keys = batch.Keys;
+        var keys = batch.CollectKeys<TKey>();
 
         using (_diagnosticEvents.ExecuteBatch(this, keys))
         {
@@ -63,12 +63,12 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
                 cancellationToken.ThrowIfCancellationRequested();
                 var context = new DataLoaderFetchContext<TValue>(ContextData);
                 await FetchAsync(keys, buffer, context, cancellationToken).ConfigureAwait(false);
-                BatchOperationSucceeded(batch, keys, buffer.Span);
+                BatchOperationSucceeded(batch, keys, cacheKeyType, buffer.Span);
             }
             catch (Exception ex)
             {
                 errors = true;
-                BatchOperationFailed(batch, keys, ex);
+                BatchOperationFailed(batch, keys, cacheKeyType, ex);
             }
             finally
             {
@@ -80,29 +80,30 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
         // after the diagnostic events are done.
         if (!errors)
         {
-            BatchPool<TKey>.Shared.Return(batch);
+            BatchPool.Shared.Return(batch);
         }
     }
 
-    private void BatchOperationFailed(Batch<TKey> batch, IReadOnlyList<TKey> keys, Exception error)
+    private void BatchOperationFailed(Batch batch, IReadOnlyList<TKey> keys, string cacheKeyType, Exception error)
     {
         _diagnosticEvents.BatchError(keys, error);
 
         foreach (var key in keys)
         {
+            PromiseCacheKey cacheKey = new(cacheKeyType, key);
             if (Cache is not null)
             {
-                PromiseCacheKey cacheKey = new(CacheKeyType, key);
                 Cache.TryRemove(cacheKey);
             }
 
-            batch.GetPromise<TValue>(key).TrySetError(error);
+            batch.GetPromise<TValue>(cacheKey).TrySetError(error);
         }
     }
 
     private void BatchOperationSucceeded(
-        Batch<TKey> batch,
+        Batch batch,
         IReadOnlyList<TKey> keys,
+        string cacheKeyType,
         ReadOnlySpan<Result<TValue?>> results)
     {
         for (var i = 0; i < keys.Count; i++)
@@ -115,11 +116,12 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
                 // in case we got here less or more results as expected, the
                 // complete batch operation failed.
                 Exception error = Errors.CreateKeysAndValuesMustMatch(keys.Count, i);
-                BatchOperationFailed(batch, keys, error);
+                BatchOperationFailed(batch, keys, cacheKeyType, error);
                 return;
             }
 
-            SetSingleResult(batch.GetPromise<TValue?>(key), key, value);
+            PromiseCacheKey cacheKey = new(cacheKeyType, key);
+            SetSingleResult(batch.GetPromise<TValue?>(cacheKey), key, value);
         }
 
         _diagnosticEvents.BatchResults(keys, results);

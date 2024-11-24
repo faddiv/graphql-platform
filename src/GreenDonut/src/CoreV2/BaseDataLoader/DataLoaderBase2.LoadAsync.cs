@@ -14,9 +14,11 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        var promise = CreateAndCachePromise(key, cancellationToken);
+        var cacheKeyType = CacheKeyType;
 
-        EnsureBatchExecuted(_currentBatch, cancellationToken);
+        var promise = CreateAndCachePromise(key, cacheKeyType, cancellationToken);
+
+        EnsureBatchExecuted(_currentBatch, cacheKeyType, cancellationToken);
         return promise.Task;
     }
 
@@ -35,18 +37,20 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
             return Task.FromResult<IReadOnlyList<TValue?>>([]);
         }
 
+        var cacheKeyType = CacheKeyType;
+
         var tasks = new Task<TValue?>[keys.Count];
         var index = 0;
         foreach (var key in keys)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var promise = CreateAndCachePromise(key, cancellationToken);
+            var promise = CreateAndCachePromise(key, cacheKeyType, cancellationToken);
 
             tasks[index++] = promise.Task;
         }
 
-        EnsureBatchExecuted(_currentBatch, cancellationToken);
+        EnsureBatchExecuted(_currentBatch, cacheKeyType, cancellationToken);
 
         return WhenAll(tasks);
 
@@ -56,20 +60,21 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
 
     private Promise<TValue?> CreateAndCachePromise(
         TKey key,
+        string cacheKeyType,
         CancellationToken cancellationToken)
     {
-        var cacheKey = new PromiseCacheKey(CacheKeyType, key);
+        var cacheKey = new PromiseCacheKey(cacheKeyType, key);
 
         Promise<TValue?> promise;
         if (Cache is null)
         {
-            promise = CreatePromiseFromBatch(key, cancellationToken);
+            promise = CreatePromiseFromBatch(cacheKey, cancellationToken);
         }
         else
         {
             if (Cache.TryGetOrAddPromise(cacheKey,
                 CreatePromise,
-                (this, key, cancellationToken), out promise))
+                (this, cancellationToken), out promise))
             {
                 _diagnosticEvents.ResolvedTaskFromCache(this, cacheKey, promise.Task);
             }
@@ -78,16 +83,16 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
         return promise;
 
         static Promise<TValue?> CreatePromise(
-            PromiseCacheKey _,
-            (DataLoaderBase2<TKey, TValue>, TKey, CancellationToken) state)
+            PromiseCacheKey key,
+            (DataLoaderBase2<TKey, TValue>, CancellationToken) state)
         {
-            var (self, key, cancellationToken) = state;
+            var (self, cancellationToken) = state;
             return self.CreatePromiseFromBatch(key, cancellationToken);
         }
     }
 
     private Promise<TValue?> CreatePromiseFromBatch(
-        TKey key,
+        PromiseCacheKey key,
         CancellationToken cancellationToken)
     {
         var currentBranch = _currentBatch ?? CreateNewBatch(null);
@@ -101,7 +106,7 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
                 return promise.Value;
             }
 
-            EnsureBatchExecuted(currentBranch, cancellationToken);
+            EnsureBatchExecuted(currentBranch, key.Type, cancellationToken);
             currentBranch = CreateNewBatch(currentBranch);
         }
     }

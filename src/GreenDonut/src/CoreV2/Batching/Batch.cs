@@ -6,19 +6,27 @@ using System.Diagnostics.CodeAnalysis;
 using GreenDonut;
 using Internals;
 
-internal class Batch<TKey> where TKey : notnull
+internal class Batch
 {
-    private readonly Dictionary<TKey, IPromise> _items = [];
+    private readonly Dictionary<PromiseCacheKey, IPromise> _items = [];
     private readonly Lock _lock = new();
     private BatchStatusHandler _status = new();
     private int _size;
 
     public int MaxSize { get; set; }
 
-    public IReadOnlyList<TKey> Keys => _status.Is(BatchStatus.Closed) ? [.. _items.Keys] : [];
+    public IReadOnlyList<TKey> CollectKeys<TKey>()
+    {
+        var keys = new List<TKey>(_items.Count);
+        foreach (var pair in _items)
+        {
+            keys.Add((TKey)pair.Key.Key);
+        }
+        return keys;
+    }
 
     public bool TryGetOrCreatePromise<TValue>(
-        TKey key,
+        PromiseCacheKey key,
         bool allowCachePropagation,
         [NotNullWhen(true)] out Promise<TValue?>? promise)
     {
@@ -66,7 +74,7 @@ internal class Batch<TKey> where TKey : notnull
         return original == BatchStatus.Open;
     }
 
-    public Promise<TValue> GetPromise<TValue>(TKey key)
+    public Promise<TValue> GetPromise<TValue>(PromiseCacheKey key)
         => (Promise<TValue>)_items[key];
 
     public void Close()

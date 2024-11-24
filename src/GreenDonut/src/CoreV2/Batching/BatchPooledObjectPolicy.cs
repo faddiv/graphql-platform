@@ -2,13 +2,12 @@ using Microsoft.Extensions.ObjectPool;
 
 namespace GreenDonutV2;
 
-internal class BatchPooledObjectPolicy<TKey>
-        : PooledObjectPolicy<Batch<TKey>>
-     where TKey : notnull
+internal class BatchPooledObjectPolicy
+        : PooledObjectPolicy<Batch>
 {
-    public override Batch<TKey> Create() => new();
+    public override Batch Create() => new();
 
-    public override bool Return(Batch<TKey> obj)
+    public override bool Return(Batch obj)
     {
         obj.ClearUnsafe();
         return true;
