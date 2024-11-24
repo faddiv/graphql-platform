@@ -122,6 +122,7 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
             SetSingleResult(batch.GetPromise<TValue?>(key), key, value);
         }
 
+        Cache?.NotifyBatchSucceeded<TValue>(FromKeys(keys, CacheKeyType));
         _diagnosticEvents.BatchResults(keys, results);
     }
 
@@ -135,6 +136,14 @@ public abstract partial class DataLoaderBase2<TKey, TValue>
         {
             _diagnosticEvents.BatchItemError(key, result.Error!);
             promise.TrySetError(result.Error!);
+        }
+    }
+
+    private static IEnumerable<PromiseCacheKey> FromKeys(IReadOnlyList<TKey> keys, string cacheKeyType)
+    {
+        foreach (var key in keys)
+        {
+            yield return new PromiseCacheKey(cacheKeyType, key);
         }
     }
 }

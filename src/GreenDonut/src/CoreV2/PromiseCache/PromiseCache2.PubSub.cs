@@ -110,22 +110,31 @@ partial class PromiseCache2
                 "The promise is a clone and cannot be used to register a callback.");
         }
 
-        promise.Task.ContinueWith(static (_, o) =>
-            {
-                var (owner, key, promise) = ((PromiseCache2, PromiseCacheKey, Promise<TValue>))o!;
-                owner.NotifySubscribers(key, promise);
-            }, (this, key, promise),
-            TaskContinuationOptions.OnlyOnRanToCompletion);
+        if (IsCompletedSuccessfully(promise))
+        {
+            NotifySubscribers(key, promise);
+        }
+        else
+        {
+
+            promise.Task.ContinueWith(static (_, o) =>
+                {
+                    var (owner, key, promise) = ((PromiseCache2, PromiseCacheKey, Promise<TValue>))o!;
+                    owner.NotifySubscribers(key, promise);
+                }, (this, key, promise),
+                TaskContinuationOptions.OnlyOnRanToCompletion);
+        }
+
     }
 
-    private void NotifySubscribers<T>(in PromiseCacheKey key, in Promise<T> promise)
+    private void NotifySubscribers<TValue>(in PromiseCacheKey key, in Promise<TValue> promise)
     {
-        if (promise.Task is not { IsCompletedSuccessfully: true, Result: not null })
+        if (!IsCompletedSuccessfully(promise))
         {
             return;
         }
 
-        if (!_subscriptions.TryGetValue(typeof(T), out var subscriptions))
+        if (!_subscriptions.TryGetValue(typeof(TValue), out var subscriptions))
         {
             return;
         }
@@ -134,11 +143,48 @@ partial class PromiseCache2
 
         foreach (var subscription in subscriptions)
         {
-            if (subscription is Subscription<T> casted)
+            if (subscription is Subscription<TValue> casted)
             {
                 casted.OnNext(key, clonedPromise);
             }
         }
+    }
+
+    public void NotifyBatchSucceeded<TValue>(IEnumerable<PromiseCacheKey> keys)
+    {
+        if (!_subscriptions.TryGetValue(typeof(TValue), out var subscriptions))
+        {
+            return;
+        }
+
+        foreach (var key in keys)
+        {
+            if (!_promises.TryGetValue(key, out var pr) ||
+                pr is not Promise<TValue> promise)
+            {
+                continue;
+            }
+
+            if (!IsCompletedSuccessfully(promise))
+            {
+                return;
+            }
+
+            var clonedPromise = promise.Clone();
+
+            foreach (var subscription in subscriptions)
+            {
+                if (subscription is Subscription<TValue> casted)
+                {
+                    casted.OnNext(key, clonedPromise);
+                }
+            }
+        }
+    }
+
+    private static bool IsCompletedSuccessfully<T>(Promise<T> promise)
+    {
+        return promise.Task is { IsCompletedSuccessfully: true, Result: not null };
     }
 
     private sealed class Subscription<T>(

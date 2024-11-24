@@ -54,7 +54,6 @@ public sealed partial class PromiseCache2(int size) : IPromiseCache2
             return true;
         }
 
-        NotifySubscribersOnComplete(promise, key);
         return false;
     }
 
